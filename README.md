@@ -5,7 +5,8 @@ LunaTV（DaoTV 增强版）与网关 tvbox-guard 在 NAS 上的部署文件与�
 - LunaTV 部署位置：`/vol1/1000/docker/LunaTV`（NAS 192.168.3.100），访问 http://192.168.3.100:3030
 - tvbox-guard 部署位置：`/vol1/1000/docker/tvbox-guard`，访问 http://192.168.3.100:3032/admin
 - 存储：Kvrocks（Redis 协议兼容），LunaTV 的播放配置全部放在 `admin:config` 这个键里
-- 备份仓库：`/vol1/1000/docker/LunaTV-backup`（就是本目录），GitHub 上同一份
+- 备份仓库：`/vol1/1000/docker/LunaTV-backup`（就是本目录）
+- GitHub 镜像：<https://github.com/Kmatsk/workbuddy-lunatv-config>（公开，密码 / Token 已脱敏）
 - Kvrocks 额外绑了 `127.0.0.1:6666`，只给备份脚本直连用，不对外暴露；脚本因此不需要 docker 权限，普通用户与 cron 都能跑
 
 
