@@ -3,7 +3,7 @@
   "ConfigSubscribtion": {
     "URL": "https://pz.v88.qzz.io?format=2&source=full",
     "AutoUpdate": true,
-    "LastCheck": "2026-11-11T17:47:21.912Z"
+    "LastCheck": "2026-11-11T19:47:21.681Z"
   },
   "SiteConfig": {
     "SiteName": "LunaTV (DaoTV 增强版)",
@@ -52,7 +52,7 @@
       "api": "https://caiji.dbzy5.com/api.php/provide/vod",
       "detail": "https://dbzy.tv",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod"
     },
     {
@@ -61,7 +61,7 @@
       "api": "https://caiji.maotaizy.cc/api.php/provide/vod",
       "detail": "https://mtzy.me",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod"
     },
     {
@@ -70,7 +70,7 @@
       "api": "https://wolongzyw.com/api.php/provide/vod",
       "detail": "https://wolongzyw.com",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod"
     },
     {
@@ -215,7 +215,7 @@
       "api": "https://p2100.net/api.php/provide/vod",
       "detail": "https://p2100.net",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod"
     },
     {
@@ -607,7 +607,7 @@
       "api": "https://www.xxibaozyw.com/api.php/provide/vod",
       "detail": "https://www.xxibaozyw.com",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod",
       "is_adult": true
     },
@@ -617,7 +617,7 @@
       "api": "https://www.xiangjiaozyw.com/api.php/provide/vod",
       "detail": "https://www.xiangjiaozyw.com",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod",
       "is_adult": true
     },
