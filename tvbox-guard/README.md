@@ -31,7 +31,7 @@ tvbox-guard/
 | `LUNA_USER` / `LUNA_PASS` | LunaTV 管理员账号，网关要登录后台读片源列表 |
 | `TMDB_TOKEN` | TMDB 只读 Token，用于补封面 |
 | `LUNA_BASE` / `SELF_BASE` | 上游与自身地址，默认 `http://192.168.3.100:3030` / `:3032` |
-| `GUARD_PORT` | 监听端口，默认 3032；`network_mode: host` 直接用宿主网络 |
+| `GUARD_PORT` | 监听端口，默认 3032；compose 里以 `3032:3032` 映射到宿主机（桥接网络，Docker 面板可见该端口） |
 
 真实值放同目录 `.env`（权限 600，`.gitignore` 排除），仓库里只留占位符。
 
