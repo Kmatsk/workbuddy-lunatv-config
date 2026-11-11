@@ -1,7 +1,7 @@
 {
-  "exported": "2026-11-12T00:04:13",
+  "exported": "2026-11-12T00:17:46",
   "source": "Kvrocks admin:config",
-  "configSha256": "0c4d5b5ab7aff0bc",
+  "configSha256": "fa8287ae2fbd01a8",
   "sources": 5,
   "sourceKeys": [
     "tai2",
@@ -21,5 +21,5 @@
     "sys:migration:hash_v2",
     "sys:migration:pwd_hash_v1"
   ],
-  "changed": false
+  "changed": true
 }

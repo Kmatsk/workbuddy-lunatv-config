@@ -100,7 +100,9 @@
     "enabledCloudTypes": [
       "baidu",
       "aliyun",
-      "quark"
+      "quark",
+      "123",
+      "xunlei"
     ],
     "token": "",
     "username": "",
