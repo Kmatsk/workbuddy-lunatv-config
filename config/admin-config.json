@@ -1,0 +1,174 @@
+{
+  "ConfigFile": "1",
+  "ConfigSubscribtion": {
+    "URL": "",
+    "AutoUpdate": false,
+    "LastCheck": "2026-11-11T06:47:22.100Z"
+  },
+  "SiteConfig": {
+    "SiteName": "LunaTV (DaoTV 增强版)",
+    "Announcement": "本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。",
+    "SearchDownstreamMaxPage": 5,
+    "SiteInterfaceCacheTime": 7200,
+    "DoubanProxyType": "direct",
+    "DoubanProxy": "",
+    "DoubanImageProxyType": "server",
+    "DoubanImageProxy": "",
+    "BangumiApiType": "cmliussss",
+    "BangumiApiProxy": "",
+    "BangumiImageProxyType": "cmliussss",
+    "BangumiImageProxy": "",
+    "DisableYellowFilter": true,
+    "ShowAdultContent": true,
+    "FluidSearch": true,
+    "EnableWebLive": false,
+    "TMDBApiKey": "<SECRET>",
+    "TMDBLanguage": "zh-CN",
+    "EnableTMDBActorSearch": false
+  },
+  "UserConfig": {
+    "AllowRegister": true,
+    "Users": [
+      {
+        "username": "Kmatsk",
+        "role": "owner",
+        "banned": false
+      }
+    ]
+  },
+  "SourceConfig": [
+    {
+      "key": "tai2",
+      "name": "太二影视",
+      "api": "https://v.tai2.lol/api.php/provide/vod",
+      "from": "custom",
+      "type": "vod",
+      "weight": 50,
+      "disabled": false
+    },
+    {
+      "key": "ruyi",
+      "name": "如意资源",
+      "api": "https://cj.rycjapi.com/api.php/provide/vod",
+      "from": "custom",
+      "type": "vod",
+      "weight": 50,
+      "disabled": false
+    },
+    {
+      "key": "zzoc",
+      "name": "枝枝影视",
+      "api": "https://zzoc.cc/api.php/provide/vod",
+      "from": "custom",
+      "type": "vod",
+      "weight": 50,
+      "disabled": false
+    },
+    {
+      "key": "iqiyizy",
+      "name": "爱奇艺资源站",
+      "api": "https://iqiyizyapi.com/api.php/provide/vod",
+      "from": "custom",
+      "type": "vod",
+      "weight": 50,
+      "disabled": false
+    },
+    {
+      "key": "dyttzy",
+      "name": "电影天堂",
+      "api": "https://caiji.dyttzyapi.com/api.php/provide/vod",
+      "from": "custom",
+      "type": "vod",
+      "weight": 50,
+      "disabled": false
+    }
+  ],
+  "CustomCategories": [],
+  "LiveConfig": [],
+  "TVBoxProxyConfig": {
+    "enabled": false,
+    "proxyUrl": "https://corsapi.smone.workers.dev"
+  },
+  "VideoProxyConfig": {
+    "enabled": false,
+    "proxyUrl": "https://corsapi.smone.workers.dev"
+  },
+  "NetDiskConfig": {
+    "enabled": true,
+    "pansouUrl": "https://so.252035.xyz",
+    "timeout": 30,
+    "enabledCloudTypes": [
+      "baidu",
+      "aliyun",
+      "quark"
+    ],
+    "token": "",
+    "username": "",
+    "password": ""
+  },
+  "AIRecommendConfig": {
+    "enabled": false,
+    "apiUrl": "https://api.openai.com/v1",
+    "apiKey": "",
+    "model": "gpt-3.5-turbo",
+    "temperature": 0.7,
+    "maxTokens": 3000,
+    "enableOrchestrator": false,
+    "enableWebSearch": false,
+    "tavilyApiKeys": []
+  },
+  "YouTubeConfig": {
+    "enabled": false,
+    "apiKey": "",
+    "enableDemo": true,
+    "maxResults": 25,
+    "enabledRegions": [
+      "US",
+      "CN",
+      "JP",
+      "KR",
+      "GB",
+      "DE",
+      "FR"
+    ],
+    "enabledCategories": [
+      "Film & Animation",
+      "Music",
+      "Gaming",
+      "News & Politics",
+      "Entertainment"
+    ]
+  },
+  "ShortDramaConfig": {
+    "primaryApiUrl": "https://tyyszyapi.com/api.php/provide/vod",
+    "alternativeApiUrl": "",
+    "enableAlternative": false
+  },
+  "DownloadConfig": {
+    "enabled": false
+  },
+  "DoubanConfig": {
+    "enablePuppeteer": false
+  },
+  "CronConfig": {
+    "enableAutoRefresh": true,
+    "maxRecordsPerRun": 100,
+    "onlyRefreshRecent": true,
+    "recentDays": 30,
+    "onlyRefreshOngoing": true
+  },
+  "BilibiliConfig": {
+    "enabled": true,
+    "loginStatus": "not_logged_in"
+  },
+  "HomePageConfig": {
+    "showHeroBanner": false,
+    "showContinueWatching": true,
+    "showUpcomingReleases": true,
+    "showHotMovies": true,
+    "showHotTvShows": true,
+    "showNewAnime": true,
+    "showHotVariety": true,
+    "showHotShortDramas": true
+  }
+}

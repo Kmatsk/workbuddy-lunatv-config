@@ -1,0 +1,9 @@
+# 敏感信息：只留在 NAS 本地，绝不入库
+secrets/
+.env
+
+# 运行时
+*.tmp
+*.log
+video-cache/
+__pycache__/

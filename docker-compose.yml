@@ -1,0 +1,45 @@
+# LunaTV (DaoTV 增强版) — 影视聚合播放平台
+# 部署目录: /vol1/1000/docker/LunaTV
+# 配置文件: 同目录 .env（改账号密码/站点名在这里改，改完 docker compose up -d 重建）
+# 访问地址: http://192.168.3.100:3030
+# 存储: Kvrocks（持久化 Redis 协议兼容，官方推荐）
+services:
+  lunatv-core:
+    image: ghcr.io/szemeng76/lunatv:latest
+    container_name: lunatv-core
+    restart: unless-stopped
+    # 内存上限（NAS 仅 3.7G，防止单个容器吃满）
+    mem_limit: 768m
+    ports:
+      - "3030:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./video-cache:/app/video-cache
+    networks:
+      - lunatv-net
+    depends_on:
+      - lunatv-kvrocks
+
+  lunatv-kvrocks:
+    image: apache/kvrocks
+    container_name: lunatv-kvrocks
+    restart: unless-stopped
+    # NAS 内存紧张：限制 kvrocks 内存（RocksDB block cache 已在 kvrocks.conf 调至 32MB）
+    mem_limit: 256m
+    # 只绑本机回环：供备份脚本直连导出配置，不对外暴露
+    ports:
+      - "127.0.0.1:6666:6666"
+    volumes:
+      - kvrocks-data:/var/lib/kvrocks
+      # 用宿主机调优后的配置覆盖镜像默认配置（默认 block_cache 4096MB 会吃光内存）
+      - ./kvrocks.conf:/var/lib/kvrocks/kvrocks.conf:ro
+    networks:
+      - lunatv-net
+
+networks:
+  lunatv-net:
+    driver: bridge
+
+volumes:
+  kvrocks-data:

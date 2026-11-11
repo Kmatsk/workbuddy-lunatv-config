@@ -1,0 +1,25 @@
+{
+  "exported": "2026-11-12T00:04:13",
+  "source": "Kvrocks admin:config",
+  "configSha256": "0c4d5b5ab7aff0bc",
+  "sources": 5,
+  "sourceKeys": [
+    "tai2",
+    "ruyi",
+    "zzoc",
+    "iqiyizy",
+    "dyttzy"
+  ],
+  "siteName": "LunaTV (DaoTV 增强版)",
+  "redactedFields": [
+    "SiteConfig.TMDBApiKey"
+  ],
+  "historyKeys": [
+    "u:Kmatsk:sh"
+  ],
+  "kvKeys": [
+    "sys:migration:hash_v2",
+    "sys:migration:pwd_hash_v1"
+  ],
+  "changed": false
+}
