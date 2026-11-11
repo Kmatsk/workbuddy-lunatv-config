@@ -29,7 +29,8 @@ except Exception:
     LUNA_HOST = ""
 # 网关本身与同机 LunaTV 服务的请求都属于「服务流量」，不计入客户端设备
 DEFAULT_IGNORE_DEVS = ["192.168.3.100", SELF_HOST, LUNA_HOST]
-LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", SELF_HOST, LUNA_HOST}
+# 172.17.0.1：容器走桥接网络时，宿主机自己发起的请求会以 docker0 网关地址出现
+LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost", "172.17.0.1", SELF_HOST, LUNA_HOST}
 
 DEFAULT_CATS = ["伦理","倫理","里番","成人","福利","情色","色情","写真","激情","三级",
                 "av","女优","男优","18禁","限制级","r18","人妖","巨乳","自拍","偷拍",
@@ -211,6 +212,15 @@ def month_key(t=None):
     return time.strftime("%Y-%m", time.localtime(t if t is not None else time.time()))
 
 
+def _is_docker_gw(ip):
+    """172.16/12 里的 x.x.x.1：docker 网桥网关，宿主机/容器自身流量的来源，不是客户端"""
+    try:
+        a, b, c, d = [int(x) for x in str(ip).split(".")]
+    except Exception:
+        return False
+    return a == 172 and 16 <= b <= 31 and d == 1
+
+
 def ignore_hosts():
     """网关自身 + NAS/LunaTV 服务的请求不算客户端设备"""
     return set(LOCAL_HOSTS) | {str(x) for x in (_f.get("ignore_dev") or set()) if str(x).strip()}
@@ -323,17 +333,19 @@ def devices_snapshot():
     idle = max(60, min(86400, int(_f.get("idle_min") or 5) * 60))
     today, mon = day_key(now), month_key(now)
     skip = ignore_hosts()
+    def _sk(ip):
+        return ip in skip or _is_docker_gw(ip)
     with _clients_lock:
         items = [(k, dict(v)) for k, v in _clients.items()]
         hday = copy.deepcopy(_hist["days"].get(today) or {"n": 0, "dev": {}})
         hmon = copy.deepcopy(_hist["months"].get(mon) or {"n": 0, "dev": {}})
         trend = []
         for k, v in sorted(_hist["days"].items())[-7:]:
-            dev = {i: c for i, c in ((v or {}).get("dev") or {}).items() if i not in skip}
+            dev = {i: c for i, c in ((v or {}).get("dev") or {}).items() if not _sk(i)}
             trend.append((k, sum(int(c or 0) for c in dev.values()), len(dev)))
     out = []
     for ip, r in items:
-        if r.get("day") != today or ip in skip:
+        if r.get("day") != today or _sk(ip):
             continue
         ago = now - float(r.get("ts") or 0)
         out.append({"ip": ip, "online": ago <= idle, "ago": round(ago, 1),
@@ -345,9 +357,9 @@ def devices_snapshot():
     out.sort(key=lambda x: (not x["online"], -x["n"]))
     return {"idleMin": idle // 60, "idleSec": idle, "day": today, "month": mon,
             "online": sum(1 for x in out if x["online"]), "today": len(out),
-            "monthDevices": len([k for k in (hmon.get("dev") or {}) if k not in skip]),
-            "dayRequests": sum(int(c or 0) for i, c in (hday.get("dev") or {}).items() if i not in skip),
-            "monthRequests": sum(int(c or 0) for i, c in (hmon.get("dev") or {}).items() if i not in skip),
+            "monthDevices": len([k for k in (hmon.get("dev") or {}) if not _sk(k)]),
+            "dayRequests": sum(int(c or 0) for i, c in (hday.get("dev") or {}).items() if not _sk(i)),
+            "monthRequests": sum(int(c or 0) for i, c in (hmon.get("dev") or {}).items() if not _sk(i)),
             "devices": out[:30],
             "trend": [{"day": d, "n": n, "devices": c} for d, n, c in trend],
             "serverTime": now}
@@ -1832,7 +1844,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         ua = (self.headers.get("User-Agent") or "")[:30]
         ip = (self.client_address or ("?", 0))[0]
-        if ip not in ignore_hosts():   # 网关自身 / NAS LunaTV 服务的请求不算设备
+        if ip not in ignore_hosts() and not _is_docker_gw(ip):   # 网关自身 / NAS LunaTV / 网桥网关不算设备
             dev_touch(ip, ua, p.path)
         if p.path == "/img":       # 封面请求只算活跃，不进控制台日志（太吵）
             return

@@ -3,7 +3,10 @@ services:
     image: python:3.12-alpine
     container_name: tvbox-guard
     restart: unless-stopped
-    network_mode: host
+    # 桥接 + 端口映射（不再用 host 网络）：Docker 面板里能看到 3032 并直接点开，
+    # 局域网客户端来源 IP 仍会原样传给容器（已实测 192.168.3.x 不被 NAT 改写）
+    ports:
+      - "3032:3032"
     working_dir: /app
     command: python guard.py
     volumes:
