@@ -59,11 +59,13 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 .srcs{display:flex;flex-direction:column;gap:8px}
 .srcrow{display:flex;align-items:center;gap:12px;background:#12151c;border:1px solid var(--line2);border-radius:10px;padding:9px 12px}
 .srcrow.off{opacity:.45}
+.srcrow[draggable]{cursor:grab}
+.srcrow.dragging{opacity:.45;border-color:var(--blue);background:#1a2233}
+.srcrow.over{border-top:2px solid var(--blue)}
 .srcname{flex:1;font-size:13px}
 .srckey{font-size:11px;color:#6f778a;font-family:ui-monospace,monospace}
-.arrows{display:flex;gap:4px}
-.arrows button{padding:4px 9px;background:#20242f;color:#c9d0df;font-size:12px;line-height:1.2}
-.arrows button:hover{background:#2a3040}
+.grip{flex:0 0 auto;color:#6f778a;font-size:16px;user-select:none;cursor:grab;padding:0 2px;letter-spacing:-2px}
+.grip:hover{color:#c9d0df}
 .statrow{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
 .statrow button{padding:6px 12px;font-size:12px}
 .trend{display:inline-flex;align-items:flex-end;gap:7px;height:36px;margin-left:2px}
@@ -113,10 +115,11 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
     <button data-p="overview" class="on">概览</button>
     <button data-p="words">屏蔽词</button>
     <button data-p="sources">片源管理</button>
+    <button data-p="search">搜索统计</button>
     <button data-p="update">更新设置</button>
     <button data-p="logo">LOGO 设置</button>
   </nav>
-  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v1.8</span></div>
+  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v1.9</span></div>
 </aside>
 
 <main>
@@ -170,9 +173,36 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
       <div class="statrow">
         <span class="muted" id="d-info">日 / 月接入统计 —</span>
         <span class="muted" id="d-trend"></span>
+        <button class="ghost" onclick="resetDevices()">清零设备统计</button>
       </div>
       <div id="clients"></div>
-      <div class="muted" style="margin-top:8px">机顶盒拉配置、翻分类、加载封面都算一次数据流；阈值在「更新设置 → 在线检测」里改（1 分钟 ~ 24 小时）。日统计保留最近 31 天、月统计保留最近 6 个月，写入 cache/devices.json，重启不丢、到期自动覆盖；网关自身与 NAS 上的 LunaTV 服务（192.168.3.100）请求不计入设备。</div>
+      <div class="muted" style="margin-top:8px">机顶盒拉配置、翻分类、加载封面都算一次数据流；阈值在「更新设置 → 在线检测」里改（1 分钟 ~ 24 小时）。日统计保留最近 31 天、月统计保留最近 6 个月，写入 cache/devices.json，重启不丢、到期自动覆盖；网关自身与 NAS 上的 LunaTV 服务（192.168.3.100）请求不计入设备。点「清零设备统计」会把实时在线、今日/本月接入与近 7 日趋势一起清零，设备下次访问后重新累计。</div>
+    </div>
+  </section>
+
+  <!-- 搜索统计 -->
+  <section class="pane" id="pane-search">
+    <div class="card">
+      <h2>搜索统计 <small>机顶盒每发起一次搜索计一次，含聚合搜索与命中屏蔽词的搜索</small></h2>
+      <div class="grid" style="margin-bottom:12px">
+        <div class="stat"><div class="n" id="q-total">-</div><div class="l">累计搜索次数</div></div>
+        <div class="stat"><div class="n" id="q-today">-</div><div class="l">今日搜索次数</div></div>
+        <div class="stat"><div class="n" id="q-words">-</div><div class="l">不同关键词</div></div>
+        <div class="stat"><div class="n" id="q-day">-</div><div class="l">统计日期</div></div>
+      </div>
+      <div class="statrow">
+        <span class="muted" id="q-info">—</span>
+        <button class="ghost" onclick="resetSearchStats()">清零搜索统计</button>
+        <button class="ghost" onclick="loadSearchStats()">刷新</button>
+      </div>
+      <div style="margin-top:14px;overflow-x:auto">
+        <table id="qtbl">
+          <thead><tr><th>#</th><th>搜索关键词</th><th>总次数</th><th>今日</th><th>命中屏蔽</th><th>最近搜索</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="muted" id="q-empty" style="display:none;margin-top:8px">暂无搜索记录。机顶盒搜索一次后这里就会出现。</div>
+      </div>
+      <div class="muted" style="margin-top:10px">按搜索次数从多到少排列，最多显示 200 条、保留次数最多的 500 个关键词，写入 cache/searchstats.json，重启不清零。点「清零搜索统计」后从 0 重新记录。</div>
     </div>
   </section>
 
@@ -263,7 +293,7 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
       <div class="rowbtns">
         <button onclick="saveAll()">保存并生效</button>
         <button class="ghost" onclick="loadSrc()">还原</button>
-        <span class="muted">关闭开关 = 该源不出现在机顶盒；↑↓ 调整分类栏顺序</span>
+        <span class="muted">关闭开关 = 该源不出现在机顶盒；按住行拖动调整分类栏顺序，保存后生效</span>
       </div>
     </div>
   </section>
@@ -386,7 +416,8 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 const $=id=>document.getElementById(id);
 let CFG={categories:[],titles:[]}, SRC=[], LOGO_TS=0;
 const TITLES={overview:['概览','运行状态与机顶盒订阅地址'],words:['屏蔽词','分类与标题双层过滤'],
-  sources:['片源管理','开关启用状态与显示顺序'],update:['更新设置','源同步与配置备份'],
+  sources:['片源管理','开关启用状态与显示顺序'],search:['搜索统计','机顶盒搜索关键词按次数排行'],
+  update:['更新设置','源同步与配置备份'],
   logo:['LOGO 设置','TVBox 首页展示图']};
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');
@@ -399,6 +430,7 @@ $('nav').addEventListener('click',e=>{
   $('pageTitle').textContent=TITLES[b.dataset.p][0];
   $('pageSub').textContent=TITLES[b.dataset.p][1];
   if(b.dataset.p==='sources') loadSrc();
+  if(b.dataset.p==='search') loadSearchStats();
   if(b.dataset.p==='logo') loadLogo();
 });
 
@@ -443,6 +475,35 @@ async function clearImgs(){
   if(!confirm('清空本地封面缓存？清完下次访问会重新从源站下载（只影响加载速度，不影响内容）。')) return;
   const j=await api('/api/img/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   if(j.ok){toast('已清理 '+j.files+' 张 / '+j.mb+' MB');loadStatus();}else toast('清理失败');
+}
+async function resetDevices(){
+  if(!confirm('确定清零设备统计？将清空实时在线、今日/本月接入与近 7 日趋势，清零后设备下次访问重新累计。')) return;
+  const j=await api('/api/devices/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j.ok){toast('设备统计已清零');loadStatus();}else toast('清零失败');
+}
+async function loadSearchStats(){
+  const j=await api('/api/search_stats');
+  if(!j||!j.ok) return;
+  $('q-total').textContent=j.total||0;
+  $('q-today').textContent=j.today||0;
+  $('q-words').textContent=j.words||0;
+  $('q-day').textContent=j.day||'—';
+  const since=j.since?new Date(j.since*1000).toLocaleString('zh-CN',{hour12:false}):'—';
+  $('q-info').textContent='统计自 '+since;
+  const tb=document.querySelector('#qtbl tbody');
+  const items=j.items||[];
+  $('q-empty').style.display=items.length?'none':'';
+  tb.innerHTML=items.map((x,i)=>{
+    const t=x.last?new Date(x.last*1000).toLocaleString('zh-CN',{hour12:false}):'—';
+    return '<tr><td>'+(i+1)+'</td><td>'+String(x.word).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      +'</td><td><b>'+(x.n||0)+'</b></td><td>'+(x.today||0)+'</td><td class="'+((x.blocked||0)>0?'bad':'')+'">'+(x.blocked||0)
+      +'</td><td class="muted">'+t+'</td></tr>';
+  }).join('');
+}
+async function resetSearchStats(){
+  if(!confirm('确定清零搜索统计？所有关键词的次数将从 0 重新记录。')) return;
+  const j=await api('/api/search_stats/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j.ok){toast('搜索统计已清零');loadSearchStats();}else toast('清零失败');
 }
 function agoText(s){
   s=+s||0;
@@ -646,25 +707,61 @@ async function runTest(){
 function renderSrc(){
   const box=$('srclist'); box.innerHTML='';
   if(!SRC.length){box.innerHTML='<div class="muted">暂无片源</div>';return;}
+  let dragEl=null;
   SRC.forEach((s,i)=>{
     const row=document.createElement('div'); row.className='srcrow'+(s.disabled?' off':'');
+    row.draggable=true; row.dataset.i=String(i); row.dataset.key=s.key;
     const sw=document.createElement('label'); sw.className='switch';
     const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!s.disabled;
     cb.onchange=()=>{SRC[i].disabled=!cb.checked;renderSrc();};
     const ii=document.createElement('i'); sw.appendChild(cb); sw.appendChild(ii);
     const name=document.createElement('div'); name.className='srcname';
-    const n1=document.createElement('div'); n1.textContent=s.name;
+    const n1=document.createElement('div'); n1.textContent=(i+1)+'. '+s.name;
     const n2=document.createElement('div'); n2.className='srckey'; n2.textContent=s.key+(s.disabled?' · 已关闭':'');
     name.appendChild(n1); name.appendChild(n2);
-    const arr=document.createElement('div'); arr.className='arrows';
-    const up=document.createElement('button'); up.textContent='↑'; up.disabled=(i===0);
-    up.onclick=()=>{if(i>0){[SRC[i-1],SRC[i]]=[SRC[i],SRC[i-1]];renderSrc();}};
-    const dn=document.createElement('button'); dn.textContent='↓'; dn.disabled=(i===SRC.length-1);
-    dn.onclick=()=>{if(i<SRC.length-1){[SRC[i+1],SRC[i]]=[SRC[i],SRC[i+1]];renderSrc();}};
-    arr.appendChild(up); arr.appendChild(dn);
-    row.appendChild(sw); row.appendChild(name); row.appendChild(arr);
+    const grip=document.createElement('span'); grip.className='grip'; grip.title='拖动调整顺序'; grip.textContent='⠿⠿';
+    row.appendChild(sw); row.appendChild(name); row.appendChild(grip);
+    row.addEventListener('dragstart',e=>{
+      dragEl=row; row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      try{e.dataTransfer.setData('text/plain',s.key);}catch(_){}
+    });
+    row.addEventListener('dragend',()=>{
+      row.classList.remove('dragging');
+      document.querySelectorAll('.srcrow.over').forEach(x=>x.classList.remove('over'));
+      if(dragEl){syncOrderFromDom();dragEl=null;}
+    });
+    row.addEventListener('dragover',e=>{
+      e.preventDefault(); e.dataTransfer.dropEffect='move';
+      if(!dragEl||dragEl===row) return;
+      const rect=row.getBoundingClientRect();
+      const before=(e.clientY-rect.top)<rect.height/2;
+      document.querySelectorAll('.srcrow.over').forEach(x=>x.classList.remove('over'));
+      row.classList.add('over');
+      if(before) box.insertBefore(dragEl,row);
+      else{
+        if(row.nextSibling) box.insertBefore(dragEl,row.nextSibling);
+        else box.appendChild(dragEl);
+      }
+    });
+    row.addEventListener('drop',e=>e.preventDefault());
     box.appendChild(row);
   });
+}
+function syncOrderFromDom(){
+  const box=$('srclist');
+  const order=[...box.children].map(el=>el.dataset.key);
+  const map={}; SRC.forEach(s=>{map[s.key]=s;});
+  const next=order.map(k=>map[k]).filter(Boolean);
+  SRC.forEach(s=>{ if(!next.includes(s)) next.push(s); });   // 兜底：漏掉的补到末尾
+  const changed=next.some((s,i)=>SRC[i]!==s);
+  SRC=next;
+  if(changed){
+    document.querySelectorAll('#srclist .srcname div:first-child').forEach((el,j)=>{
+      el.textContent=(j+1)+'. '+SRC[j].name;
+    });
+    toast('顺序已调整 · 点「保存并生效」写入');
+  }
 }
 async function loadSrc(){
   const [j,c]=await Promise.all([api('/api/sources'),api('/api/config')]);

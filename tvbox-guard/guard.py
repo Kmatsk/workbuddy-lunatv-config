@@ -189,6 +189,101 @@ def stats_reset():
         _stats_p["dirty"] = True
     stats_save(True)
     print("[stats] reset", flush=True)
+# ---------------- 搜索统计 ----------------
+# 每个关键词记录「总次数 / 当日次数 / 命中屏蔽次数 / 最近搜索时间」
+# 落盘 cache/searchstats.json，重启不清零，只保留次数最多的 500 个关键词
+SEARCH_KEEP = 500
+_search_stats = {}          # word -> {"n","dayn","day","blocked","first","last"}
+_ss_lock = threading.Lock()
+_ss_meta = {"dirty": False, "ts": 0.0}
+
+
+def searchstats_path():
+    return os.path.join(CACHE_DIR, "searchstats.json")
+
+
+def searchstats_load():
+    global _search_stats
+    try:
+        with open(searchstats_path(), "r", encoding="utf-8") as fp:
+            d = json.load(fp)
+        if isinstance(d, dict):
+            _search_stats = {str(k)[:50]: v for k, v in d.items() if isinstance(v, dict)}
+    except Exception:
+        pass
+    print("[searchstats] loaded %d words" % len(_search_stats), flush=True)
+
+
+def searchstats_save(force=False):
+    with _ss_lock:
+        if not _ss_meta["dirty"] and not force:
+            return
+        if not force and time.time() - float(_ss_meta["ts"] or 0) < 15:
+            return
+        _ss_meta["dirty"] = False
+        _ss_meta["ts"] = time.time()
+        data = dict(sorted(_search_stats.items(),
+                           key=lambda kv: -int((kv[1] or {}).get("n") or 0))[:SEARCH_KEEP])
+    try:
+        tmp = searchstats_path() + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(json.dumps(data, ensure_ascii=False))
+        os.replace(tmp, searchstats_path())
+    except Exception as e:
+        print("[searchstats] save fail:", e, flush=True)
+
+
+def search_bump(word, blocked=False):
+    w = (word or "").strip()[:50]
+    if not w:
+        return
+    today = day_key(time.time())
+    with _ss_lock:
+        r = _search_stats.get(w)
+        if r is None:
+            r = _search_stats[w] = {"n": 0, "dayn": 0, "day": today, "blocked": 0,
+                                    "first": time.time(), "last": 0.0}
+        if r.get("day") != today:      # 跨天：当日计数归零
+            r["day"], r["dayn"] = today, 0
+        r["n"] = int(r.get("n") or 0) + 1
+        r["dayn"] = int(r.get("dayn") or 0) + 1
+        r["last"] = time.time()
+        if blocked:
+            r["blocked"] = int(r.get("blocked") or 0) + 1
+        _ss_meta["dirty"] = True
+        if len(_search_stats) > SEARCH_KEEP + 100:   # 只留次数最多的关键词
+            for k in sorted(_search_stats,
+                            key=lambda k: int((_search_stats[k] or {}).get("n") or 0)
+                            )[:len(_search_stats) - SEARCH_KEEP]:
+                _search_stats.pop(k, None)
+
+
+def searchstats_snapshot():
+    with _ss_lock:
+        today = day_key(time.time())
+        items = []
+        for w, r in _search_stats.items():
+            d = dict(r)
+            d["word"] = w
+            d["today"] = int(d.get("dayn") or 0) if d.get("day") == today else 0
+            items.append(d)
+        items.sort(key=lambda x: (-int(x.get("n") or 0), x["word"]))
+        since = min([float(x.get("first") or 0) for x in items] or [0])
+        return {"ok": True, "day": today,
+                "words": len(items),
+                "total": sum(int(x.get("n") or 0) for x in items),
+                "today": sum(int(x.get("today") or 0) for x in items),
+                "since": since, "items": items[:200]}
+
+
+def searchstats_reset():
+    with _ss_lock:
+        _search_stats.clear()
+        _ss_meta["dirty"] = True
+    searchstats_save(True)
+    print("[searchstats] reset", flush=True)
+
+
 # ---------------- 在线设备统计 ----------------
 # 每个设备记录「当日 / 本月 / 累计」请求次数与最后活跃时间；超过阈值没有数据流就不算在线
 # 明细按「日」「月」两级汇总落盘 cache/devices.json：日保留 31 天、月保留 6 个月，到期自动覆盖
@@ -297,6 +392,17 @@ def devices_save(force=False):
         os.replace(tmp, dev_path())
     except Exception as e:
         print("[dev] save fail:", e, flush=True)
+
+
+def devices_reset():
+    """手动清零：清空设备列表与日/月历史（设备下次请求会重新接入统计）"""
+    with _clients_lock:
+        _clients.clear()
+        _hist["days"].clear()
+        _hist["months"].clear()
+        _clients_meta["dirty"] = True
+    devices_save(True)
+    print("[devices] reset", flush=True)
 
 
 def dev_touch(ip, ua, path):
@@ -929,6 +1035,7 @@ def warm_loop():
                 prefetch_cms()
             stats_save()
             devices_save()
+            searchstats_save()
         except Exception as e:
             print("[warm] error:", e, flush=True)
         time.sleep(15)
@@ -1760,6 +1867,8 @@ class Handler(BaseHTTPRequestHandler):
                                    "lastSyncAgo": (time.time() - _sources["ts"]) if _sources["ts"] else None})
             if p.path == "/api/devices":
                 return self._json({"ok": True, **devices_snapshot()})
+            if p.path == "/api/search_stats":
+                return self._json(searchstats_snapshot())
             if p.path == "/api/tmdb_test":
                 t0 = time.time()
                 if not TMDB_TOKEN:
@@ -1889,6 +1998,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "blockedCat": 0, "blockedTitle": 0,
                                    "tmdbHit": 0, "tmdbMiss": 0,
                                    "statsSince": _stats_p["since"], "statsMonth": stats_month_key()})
+            if p.path == "/api/devices/reset":
+                devices_reset()
+                return self._json({"ok": True, **devices_snapshot()})
+            if p.path == "/api/search_stats/reset":
+                searchstats_reset()
+                return self._json({"ok": True, **searchstats_snapshot()})
             if p.path == "/api/sync":
                 m = sources_cached(force=True)
                 return self._json({"ok": bool(m), "sources": len(m)})
@@ -2088,7 +2203,9 @@ class Handler(BaseHTTPRequestHandler):
             # 屏蔽开关开启时，搜索词本身命中黑名单 → 整个搜索直接返回空。
             # 部分源是模糊匹配，搜屏蔽词会返回一堆不含屏蔽词的擦边内容，逐条过滤拦不住
             wd0 = (qs0.get("wd") or [""])[0]
-            if _f.get("filter_on", True) and any(w in wd0.lower() for w in _f["cats"] + _f["titles"]):
+            wd_hit = _f.get("filter_on", True) and any(w in wd0.lower() for w in _f["cats"] + _f["titles"])
+            search_bump(wd0, blocked=wd_hit)   # 搜索统计：含缓存命中与被拦截的搜索
+            if wd_hit:
                 bump("title")
                 print("[search] 关键词命中屏蔽词: %s" % wd0[:20], flush=True)
                 return self._send(200, json.dumps(
@@ -2149,6 +2266,7 @@ if __name__ == "__main__":
     tmdb_load()
     stats_load()
     devices_load()
+    searchstats_load()
     img_cleanup()
     threading.Thread(target=warm_loop, daemon=True).start()
     print("tvbox-guard listening on 0.0.0.0:%d" % LISTEN_PORT, flush=True)

@@ -187,8 +187,9 @@
       "api": "https://api.wwzy.tv/api.php/provide/vod",
       "detail": "https://api.wwzy.tv",
       "from": "config",
-      "disabled": false,
-      "type": "vod"
+      "disabled": true,
+      "type": "vod",
+      "weight": 10
     },
     {
       "key": "www.subozy.com",
@@ -323,8 +324,9 @@
       "api": "https://wwzy.tv/api.php/provide/vod",
       "detail": "https://wwzy.tv",
       "from": "config",
-      "disabled": false,
-      "type": "vod"
+      "disabled": true,
+      "type": "vod",
+      "weight": 10
     },
     {
       "key": "1080zyk4.com",
