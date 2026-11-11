@@ -541,13 +541,19 @@ def sources_cached(force=False):
         try:
             req = urllib.request.Request(LUNA + "/api/admin/config", headers={"Cookie": get_cookie()})
             cfg = json.loads(urllib.request.urlopen(req, timeout=20).read().decode())
-            m = {s["key"]: {"api": s["api"], "name": s.get("name") or s["key"]}
+            m = {s["key"]: {"api": s["api"], "name": s.get("name") or s["key"],
+                            "disabled": bool(s.get("disabled"))}
                  for s in (cfg["Config"].get("SourceConfig") or []) if s.get("api")}
             if m:
                 _sources["data"], _sources["ts"] = m, time.time()
         except Exception as e:
             print("[warn] fetch sources failed:", e, flush=True)
     return _sources["data"] or {}
+
+
+def src_off(k):
+    """源关闭 = 网关里手动停用，或 LunaTV 里已停用（两边任一关闭即不下发、不参与聚合）"""
+    return k in _f["disabled"] or bool((sources_cached().get(k) or {}).get("disabled"))
 
 
 ADMIN_PATH = os.environ.get("GUARD_ADMIN", "/app/admin.html")
@@ -689,7 +695,7 @@ def prefetch_cms():
     """后台预热各源分类列表，机顶盒进入站点时直接命中缓存"""
     try:
         srcs = sources_cached()
-        keys = [k for k in srcs if k not in _f["disabled"]]
+        keys = [k for k in srcs if not src_off(k)]
         _order = {k: i for i, k in enumerate(_f["order"])}
         keys.sort(key=lambda k: _order.get(k, len(_order) + 100))
         if _f.get("src_active"):
@@ -1426,7 +1432,7 @@ def query_key(query):
 def ordered_source_keys():
     """已启用源，按配置顺序"""
     srcs = sources_cached()
-    keys = [k for k in srcs if k not in _f["disabled"]]
+    keys = [k for k in srcs if not src_off(k)]
     order = {k: i for i, k in enumerate(_f["order"])}
     keys.sort(key=lambda k: order.get(k, len(order) + 100))
     return keys
@@ -1721,6 +1727,11 @@ class Handler(BaseHTTPRequestHandler):
         qs = urllib.parse.parse_qs(p.query)
         try:
             if p.path in ("/", "/index.html"):
+                # 浏览器打开 = 后台页面；TVBox/FongMi 这类 App 的 UA 是 okhttp/dalvik，
+                # 直接把配置 JSON 给它 —— 机顶盒里点播源可以只填 http://NAS:3032
+                ua0 = (self.headers.get("User-Agent") or "").lower()
+                if any(k in ua0 for k in ("okhttp", "dalvik", "tvbox", "fongmi", "_movie", "/movie")):
+                    return self.handle_tvbox()
                 return self._send(200, render_admin().encode("utf-8"), "text/html; charset=utf-8")
             if p.path == "/logo.png":
                 return self.handle_logo()
@@ -1768,7 +1779,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "uptime": time.time() - START_TS,
                                    "cats": len(_f["cats"]), "titles": len(_f["titles"]),
                                    "sources": len(sources_cached()),
-                                   "sourcesEnabled": len([k for k in sources_cached() if k not in _f["disabled"]]),
+                                   "sourcesEnabled": len([k for k in sources_cached() if not src_off(k)]),
                                    "blocked": _stats["blocked"], "requests": _stats["requests"],
                                    "blockedCat": _stats["bcat"], "blockedTitle": _stats["btitle"],
                                    "statsSince": _stats_p["since"], "statsMonth": stats_month_key(),
@@ -1810,7 +1821,7 @@ class Handler(BaseHTTPRequestHandler):
                                    "searchLimit": int(_f.get("search_limit") or 0)})
             if p.path == "/api/sources":
                 order = {k: i for i, k in enumerate(_f["order"])}
-                items = [{"key": k, "name": v["name"], "disabled": k in _f["disabled"]}
+                items = [{"key": k, "name": v["name"], "disabled": src_off(k)}
                          for k, v in sources_cached().items()]
                 items.sort(key=lambda x: order.get(x["key"], len(order) + 100))
                 keys = [x["key"] for x in items if not x["disabled"]]
@@ -1957,7 +1968,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return {"name": meta["name"], "raw": 0, "kept": 0}
 
-        active = [(k, v) for k, v in srcs.items() if k not in _f["disabled"]]
+        active = [(k, v) for k, v in srcs.items() if not src_off(k)]
         with ThreadPoolExecutor(max_workers=6) as ex:
             results = list(ex.map(one, active))
         word_blocked = any(w in q.lower() for w in _f["cats"] + _f["titles"])
@@ -1969,7 +1980,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"error": "upstream unavailable", "detail": _luna["err"]}, 502)
         cfg = copy.deepcopy(base)
         srcmap = sources_cached()
-        sites = [x for x in (cfg.get("sites") or []) if (x.get("key") or "") not in _f["disabled"]]
+        sites = [x for x in (cfg.get("sites") or []) if not src_off(x.get("key") or "")]
         order = {k: i for i, k in enumerate(_f["order"])}
         sites.sort(key=lambda x: order.get(x.get("key") or "", len(order) + 100))
         # 单源/限量模式：只下发指定数量的源，机顶盒启动只加载这些
@@ -2054,7 +2065,7 @@ class Handler(BaseHTTPRequestHandler):
         meta = sources_cached().get(key)
         if not meta:
             return self._json({"error": "unknown source key"}, 404)
-        if key in _f["disabled"]:
+        if src_off(key):
             return self._json({"code": 0, "msg": "source disabled", "class": [], "list": [], "total": 0})
         query = p.query or ""
         qs0 = urllib.parse.parse_qs(query)
@@ -2074,6 +2085,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, json.dumps(out, ensure_ascii=False).encode())
         # 搜索：主源聚合其它未下发源
         if (qs0.get("wd") or [""])[0]:
+            # 屏蔽开关开启时，搜索词本身命中黑名单 → 整个搜索直接返回空。
+            # 部分源是模糊匹配，搜屏蔽词会返回一堆不含屏蔽词的擦边内容，逐条过滤拦不住
+            wd0 = (qs0.get("wd") or [""])[0]
+            if _f.get("filter_on", True) and any(w in wd0.lower() for w in _f["cats"] + _f["titles"]):
+                bump("title")
+                print("[search] 关键词命中屏蔽词: %s" % wd0[:20], flush=True)
+                return self._send(200, json.dumps(
+                    {"code": 0, "msg": "blocked", "class": [], "list": [], "total": 0},
+                    ensure_ascii=False).encode())
             # 缓存键必须带站点：否则 A 站聚合出来的结果会被 B 站直接拿去用
             ck_s = ("__search__", key, query_key(query))
             with _search_lock:
