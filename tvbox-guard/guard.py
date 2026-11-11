@@ -1735,9 +1735,75 @@ def cms_store(ck, out, ctype, cacheable=True):
             _cms_cache.pop(old, None)
 
 
+_cls_pid = {}                  # key -> {type_id: type_pid}（父分类判定用）
+_cls_pid_lock = threading.Lock()
+
+
+def cls_children(key, meta, tid):
+    """返回分类 tid 的子分类 id 列表（依据 ac=class 里的 type_pid），无子分类返回 []"""
+    try:
+        tid = int(tid)
+    except Exception:
+        return []
+    with _cls_pid_lock:
+        m = _cls_pid.get(key)
+    if m is None:
+        try:
+            out, _ct = cms_build(key, "ac=class", meta, True)
+            d = json.loads(out.decode("utf-8", "ignore"))
+            m = {str(c.get("type_id")): str(c.get("type_pid") or 0)
+                 for c in (d.get("class") or []) if isinstance(c, dict) and c.get("type_id") is not None}
+        except Exception:
+            m = {}
+        with _cls_pid_lock:
+            _cls_pid[key] = m
+    try:
+        kids = [int(k) for k, v in m.items() if str(v) == str(tid) and int(k) != tid]
+    except Exception:
+        kids = []
+    return sorted(kids)
+
+
+def cms_build_parent(key, meta, query, tid, pg, kids):
+    """父分类（如魔都「连续剧」「电影」）上游本身无内容、内容挂在子分类：
+    并行取各子分类同页码，按更新时间合并成一页；结果照常写缓存，后台静默刷新同样走这条路"""
+    pg = max(1, int(pg or 1))
+
+    def one(kid):
+        try:
+            cq = re.sub(r"(^|&)t=\d+", r"\1t=%d" % kid, query)
+            out, _ = cms_build(key, cq, meta, True)
+            d = json.loads(out.decode("utf-8", "ignore"))
+            return int(d.get("total") or 0) or len(d.get("list") or []), (d.get("list") or [])
+        except Exception:
+            return 0, []
+
+    total, items = 0, []
+    with ThreadPoolExecutor(max_workers=min(8, len(kids))) as ex:
+        for t_n, lst in ex.map(one, kids[:16]):
+            total += t_n
+            items.extend(lst)
+    items.sort(key=lambda v: (str(v.get("vod_time") or ""), str(v.get("vod_id") or "")), reverse=True)
+    out = {"code": 1, "msg": "list", "page": pg,
+           "pagecount": max(1, (total + 19) // 20), "limit": "20",
+           "total": total, "list": items[:20]}
+    body = json.dumps(out, ensure_ascii=False).encode()
+    cms_store((key, query), body, "application/json; charset=utf-8", True)
+    print("[parent] %s t=%d 合并 %d 个子分类 → %d 条 (total %d)" % (key, tid, len(kids), len(items[:20]), total), flush=True)
+    return body, "application/json; charset=utf-8"
+
+
 def cms_build(key, query, meta, cacheable=True):
     """请求上游 CMS，过滤分类/条目，改写封面地址，并写入缓存"""
     ck = (key, query)
+    # 父分类（type_pid 指向它、自身无内容）→ 直接合并子分类，不去请求上游这个空分类
+    tm = re.search(r"(?:^|&)t=(\d+)(?:&|$)", query)
+    if tm and "ac=videolist" in query:
+        _kids = cls_children(key, meta, int(tm.group(1)))
+        if _kids:
+            _pg = re.search(r"(?:^|&)pg=(\d+)(?:&|$)", query)
+            return cms_build_parent(key, meta, query, int(tm.group(1)),
+                                    int(_pg.group(1)) if _pg else 1, _kids)
     url = meta["api"] + ("?" + query if query else "")
     req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0.0"})
     t0 = time.time()

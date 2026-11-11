@@ -51,7 +51,8 @@
   ],
   "placeholderPattern": "^(分类|子类)\\s*\\d*$",
   "disabledSources": [
-    "caiji.moduapi.cc",
+    "api.wwzy.tv",
+    "wwzy.tv",
     "91md.me",
     "155zy2.com",
     "apiyutu.com",
@@ -84,8 +85,8 @@
     "aosikazy.com"
   ],
   "sourceOrder": [
-    "iqiyizyapi.com",
     "www.moduzy.net",
+    "iqiyizyapi.com",
     "caiji.moduapi.cc",
     "dbzy.tv",
     "mtzy.me",
