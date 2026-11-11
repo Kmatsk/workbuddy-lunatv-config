@@ -1,12 +1,13 @@
-# LunaTV 配置备份
+# 家庭影音栈配置备份（LunaTV + tvbox-guard）
 
-LunaTV（DaoTV 增强版）在 NAS 上的部署文件与运行配置，用于换机、重装或回滚时快速还原。
+LunaTV（DaoTV 增强版）与网关 tvbox-guard 在 NAS 上的部署文件与运行配置，用于换机、重装或回滚时快速还原。
 
-- 部署位置：`/vol1/1000/docker/LunaTV`（NAS 192.168.3.100）
-- 访问地址：http://192.168.3.100:3030
-- 存储：Kvrocks（Redis 协议兼容），播放配置全部放在 `admin:config` 这个键里
-- 备份仓库：`/vol1/1000/docker/LunaTV-backup`（就是本目录）
+- LunaTV 部署位置：`/vol1/1000/docker/LunaTV`（NAS 192.168.3.100），访问 http://192.168.3.100:3030
+- tvbox-guard 部署位置：`/vol1/1000/docker/tvbox-guard`，访问 http://192.168.3.100:3032/admin
+- 存储：Kvrocks（Redis 协议兼容），LunaTV 的播放配置全部放在 `admin:config` 这个键里
+- 备份仓库：`/vol1/1000/docker/LunaTV-backup`（就是本目录），GitHub 上同一份
 - Kvrocks 额外绑了 `127.0.0.1:6666`，只给备份脚本直连用，不对外暴露；脚本因此不需要 docker 权限，普通用户与 cron 都能跑
+
 
 ## 备份什么
 
@@ -21,6 +22,9 @@ LunaTV（DaoTV 增强版）在 NAS 上的部署文件与运行配置，用于换
 | `secrets/secrets.json` | 密码 / TMDB Key 等明文 | ❌ 只留 NAS，已 gitignore |
 | `.env` | 真实环境变量 | ❌ 已 gitignore |
 | `video-cache/`、`cache:*`、`calendar:*` | 视频与接口缓存 | ❌ 可随时重建 |
+| `tvbox-guard/*` | 网关代码、后台页、compose、过滤词配置 | ✅ |
+| `tvbox-guard/.env` | 网关的 LunaTV 账号 / TMDB Token | ❌ 已 gitignore |
+
 
 `admin:config` 里已包含：片源列表（key/name/api/weight/disabled）、站点名称与公告、搜索与 TMDB 设置、网盘搜索、短剧源、豆瓣/B站/YouTube 开关、首页模块开关等。
 
@@ -33,15 +37,28 @@ LunaTV（DaoTV 增强版）在 NAS 上的部署文件与运行配置，用于换
 ├── config/
 │   ├── admin-config.json     # 脱敏后的完整配置
 │   └── user-history.json
-├── secrets/secrets.json      # 不入库
+├── tvbox-guard/
+│   ├── guard.py              # 网关全部逻辑（单文件，无外部依赖）
+│   ├── admin.html            # 网关后台页面
+│   ├── docker-compose.yml
+│   ├── config.json           # 过滤词 / 占位分类规则
+│   ├── .env.example
+│   └── README.md
+├── secrets/                  # 不入库
+│   ├── secrets.json
+│   ├── .env.local
+│   └── guard.env
 ├── meta.json
 └── scripts/
     ├── export.sh             # 从 Kvrocks 导出 → 脱敏写盘
-    ├── backup.sh             # export + 有变化才 commit + push
+    ├── export-guard.sh       # 从网关部署目录同步代码与配置
+    ├── backup.sh             # export ×2 + 有变化才 commit + push
     ├── restore.sh            # 仓库 → Kvrocks 写回
+    ├── restore-guard.sh      # 仓库 → 网关部署目录 + 重建容器
     ├── redact.py             # 脱敏 / 合并逻辑
     └── install_cron.sh       # 注册每日定时任务
 ```
+
 
 ## 日常使用
 
@@ -74,6 +91,23 @@ docker compose up -d
 # 4. 写回配置（--restart 让 LunaTV 立即读新配置）
 sh /vol1/1000/docker/LunaTV-backup/scripts/restore.sh --restart
 ```
+
+## tvbox-guard 网关
+
+TVBox / 影视 App 配的接口指向 `http://192.168.3.100:3032`，网关再转发到 LunaTV，中间做片源同步、聚合搜索、内容过滤、封面缓存、TMDB 补图、统计与在线设备。
+
+```sh
+# 每天随 backup.sh 一起备份，也可以单独跑
+sh /vol1/1000/docker/LunaTV-backup/scripts/export-guard.sh
+
+# 换机还原（需要 root：部署目录属 root，且要调 docker）
+sudo sh /vol1/1000/docker/LunaTV-backup/scripts/restore-guard.sh
+```
+
+- 入库的是 `guard.py`、`admin.html`、`docker-compose.yml`、`config.json`（过滤词，后台改过也会同步）
+- `LUNA_USER` / `LUNA_PASS` / `TMDB_TOKEN` 只写在网关目录的 `.env`（600），仓库里是 `__CHANGE_ME__` 占位
+- `logo/`、`backups/`、`cache/` 属运行数据，不入库
+- 细节见 [`tvbox-guard/README.md`](tvbox-guard/README.md)
 
 ## 敏感信息怎么处理
 

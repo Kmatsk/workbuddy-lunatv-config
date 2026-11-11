@@ -1,0 +1,34 @@
+services:
+  tvbox-guard:
+    image: python:3.12-alpine
+    container_name: tvbox-guard
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    command: python guard.py
+    volumes:
+      - /vol1/1000/docker/tvbox-guard/guard.py:/app/guard.py:ro
+      - /vol1/1000/docker/tvbox-guard/admin.html:/app/admin.html:ro
+      - /vol1/1000/docker/tvbox-guard/config.json:/app/config.json
+      - /vol1/1000/docker/tvbox-guard/logo:/app/logo
+      - /vol1/1000/docker/tvbox-guard/backups:/app/backups
+      - /vol1/1000/docker/tvbox-guard/cache:/app/cache
+    environment:
+      - LUNA_BASE=http://192.168.3.100:3030
+      - SELF_BASE=http://192.168.3.100:3032
+      # 真实值放在同目录 .env（不入库）
+      - LUNA_USER=${LUNA_USER}
+      - LUNA_PASS=${LUNA_PASS}
+      - GUARD_PORT=3032
+      - TZ=Asia/Shanghai
+      - CMS_BUDGET_MB=48
+      - IMG_BUDGET_MB=256
+      - TMDB_WARM_MAX=400
+      - TMDB_LANG=zh-CN
+      - TMDB_TOKEN=${TMDB_TOKEN}
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

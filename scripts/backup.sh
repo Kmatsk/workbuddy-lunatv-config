@@ -7,6 +7,7 @@ REPO=${REPO:-/vol1/1000/docker/LunaTV-backup}
 cd "$REPO"
 
 sh "$REPO/scripts/export.sh"
+sh "$REPO/scripts/export-guard.sh"
 
 if [ -z "$(git status --porcelain)" ]; then
   echo "[backup] 配置无变化，跳过提交"

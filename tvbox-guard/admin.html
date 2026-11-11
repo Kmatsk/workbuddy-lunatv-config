@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TVBox 过滤网关</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f1115;--card:#171a21;--line:#242836;--line2:#20242f;--txt:#e6e8ee;--muted:#8b93a7;--blue:#2b6cff;--green:#3ddc84;--red:#ff6b6b}
+body{background:var(--bg);color:var(--txt);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+.app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+aside{background:#12151c;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;gap:4px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:9px;padding:4px 10px 18px}
+.brand b{font-size:15px;font-weight:600;letter-spacing:.3px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex:0 0 8px}
+.nav{display:flex;flex-direction:column;gap:3px}
+.nav button{display:flex;align-items:center;gap:10px;background:none;border:0;color:#a9b1c4;text-align:left;
+ padding:10px 12px;border-radius:9px;font-size:13.5px;cursor:pointer;width:100%;transition:.15s;border-left:2px solid transparent}
+.nav button:hover{background:#171b24;color:#dfe4ef}
+.nav button.on{background:#1d2432;color:#fff;border-left-color:var(--blue)}
+.nav svg{width:16px;height:16px;opacity:.85;flex:0 0 16px}
+.sidefoot{margin-top:auto;padding:12px 10px;color:#5f6678;font-size:11.5px;line-height:1.7}
+main{padding:26px 30px 60px;max-width:1080px;width:100%}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.top h1{font-size:20px;font-weight:600}
+.top .sub{color:var(--muted);font-size:12.5px;margin-top:4px}
+.pill{display:inline-flex;align-items:center;gap:6px;background:#16231b;border:1px solid #1f3b2b;color:#7ee2a7;
+ font-size:12px;padding:5px 11px;border-radius:999px}
+.pill .dot{width:6px;height:6px;box-shadow:none}
+.pane{display:none;flex-direction:column;gap:16px}
+.pane.on{display:flex}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.card h2{font-size:13.5px;font-weight:600;color:#aab2c5;margin-bottom:14px;letter-spacing:.3px;display:flex;align-items:center;gap:8px}
+.card h2 small{font-weight:400;color:#6f778a;font-size:11.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:#12151c;border:1px solid var(--line2);border-radius:10px;padding:13px 15px}
+.stat .n{font-size:22px;font-weight:600;color:#fff}
+.stat .l{font-size:12px;color:var(--muted);margin-top:2px}
+.stat .l b{font-weight:500;color:#9aa3b8}
+.urlbox{display:flex;gap:8px;align-items:center;background:#12151c;border:1px solid var(--line2);border-radius:10px;padding:11px 13px;flex-wrap:wrap}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;color:#7ee2b8;word-break:break-all}
+button{background:var(--blue);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+button:hover{background:#3d7bff}
+button.ghost{background:#20242f;color:#c9d0df}
+button.ghost:hover{background:#2a3040}
+button:disabled{opacity:.35;cursor:not-allowed}
+.muted{color:var(--muted);font-size:12.5px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;min-height:34px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#20242f;border:1px solid #2c3142;border-radius:999px;padding:5px 10px 5px 12px;font-size:13px}
+.chip b{font-weight:400}
+.chip span{cursor:pointer;color:#8b93a7;font-size:15px;line-height:1;user-select:none}
+.chip span:hover{color:var(--red)}
+.addrow{display:flex;gap:8px}
+input[type=text],input[type=number]{flex:1;background:#12151c;border:1px solid #262b38;border-radius:8px;color:var(--txt);
+ padding:9px 12px;font-size:13px;outline:none;min-width:0}
+input:focus{border-color:var(--blue)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2)}
+th{color:var(--muted);font-weight:500}
+td.ok{color:var(--green)}td.bad{color:var(--red)}
+.srcs{display:flex;flex-direction:column;gap:8px}
+.srcrow{display:flex;align-items:center;gap:12px;background:#12151c;border:1px solid var(--line2);border-radius:10px;padding:9px 12px}
+.srcrow.off{opacity:.45}
+.srcname{flex:1;font-size:13px}
+.srckey{font-size:11px;color:#6f778a;font-family:ui-monospace,monospace}
+.arrows{display:flex;gap:4px}
+.arrows button{padding:4px 9px;background:#20242f;color:#c9d0df;font-size:12px;line-height:1.2}
+.arrows button:hover{background:#2a3040}
+.statrow{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+.statrow button{padding:6px 12px;font-size:12px}
+.trend{display:inline-flex;align-items:flex-end;gap:7px;height:36px;margin-left:2px}
+.trend .b{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;font-size:9.5px;color:var(--muted);line-height:1;height:100%}
+.trend .b i{display:block;width:14px;border-radius:3px;min-height:3px;background:#3a4256}
+.trend .b.now i{background:linear-gradient(180deg,#4f8cff,#2b4f9e)}
+
+.switch{position:relative;display:inline-block;width:40px;height:22px;flex:0 0 40px}
+.switch input{display:none}
+.switch i{position:absolute;inset:0;background:#333a4a;border-radius:999px;transition:.2s;cursor:pointer}
+.switch i:before{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:3px;left:3px;transition:.2s}
+.switch input:checked+i{background:var(--blue)}
+.switch input:checked+i:before{transform:translateX(18px)}
+.sel{background:#12151c;border:1px solid #262b38;border-radius:8px;color:#e2e6ef;padding:9px 12px;
+ font-size:13px;outline:none;min-width:160px;cursor:pointer}
+.sel:focus{border-color:var(--blue)}
+.field{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--line2)}
+.field:last-of-type{border-bottom:0}
+.field .t{font-size:13.5px}
+.field .d{font-size:12px;color:var(--muted);margin-top:2px}
+.field .ctl{flex:0 0 auto;display:flex;align-items:center;gap:10px}
+.num{width:88px;text-align:center}
+.logo-preview{width:100%;max-width:420px;aspect-ratio:16/9;background:#0c0e12;border:1px dashed #2c3142;border-radius:12px;
+ display:flex;align-items:center;justify-content:center;overflow:hidden}
+.logo-preview img{max-width:100%;max-height:100%;object-fit:contain}
+.logo-preview .empty{color:#5f6678;font-size:12.5px}
+.rowbtns{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+.toast{position:fixed;right:22px;bottom:22px;background:#12151c;border:1px solid var(--blue);color:#dbe4ff;
+ border-radius:10px;padding:10px 16px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+@media(max-width:760px){
+ .app{grid-template-columns:1fr}
+ aside{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:10px;gap:6px;z-index:5;border-right:0;border-bottom:1px solid var(--line)}
+ .brand{padding:0 8px 0 4px}.brand b{display:none}
+ .nav{flex-direction:row}
+ .nav button{white-space:nowrap;border-left:0;border-bottom:2px solid transparent;border-radius:8px;padding:7px 11px}
+ .nav button.on{border-bottom-color:var(--blue)}
+ .nav svg{display:none}
+ .sidefoot{display:none}
+ main{padding:18px 14px 40px}
+}
+</style></head><body>
+<div class="app">
+<aside>
+  <div class="brand"><span class="dot"></span><b>TVBox 网关</b></div>
+  <nav class="nav" id="nav">
+    <button data-p="overview" class="on">概览</button>
+    <button data-p="words">屏蔽词</button>
+    <button data-p="sources">片源管理</button>
+    <button data-p="update">更新设置</button>
+    <button data-p="logo">LOGO 设置</button>
+  </nav>
+  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v1.8</span></div>
+</aside>
+
+<main>
+  <div class="top">
+    <div>
+      <h1 id="pageTitle">概览</h1>
+      <div class="sub" id="pageSub">加载中…</div>
+    </div>
+    <div class="pill"><span class="dot"></span><span id="pillText">运行中</span></div>
+  </div>
+
+  <!-- 概览 -->
+  <section class="pane on" id="pane-overview">
+    <div class="card">
+      <h2>运行状态</h2>
+      <div class="grid">
+        <div class="stat"><div class="n" id="s-src">-</div><div class="l">已纳管片源</div></div>
+        <div class="stat"><div class="n" id="s-on">-</div><div class="l">启用中片源</div></div>
+        <div class="stat"><div class="n" id="s-cat">-</div><div class="l">分类屏蔽词</div></div>
+        <div class="stat"><div class="n" id="s-title">-</div><div class="l">标题屏蔽词</div></div>
+        <div class="stat"><div class="n" id="s-bcat">-</div><div class="l">分类拦截 · 本月 <b id="m-bcat">0</b></div></div>
+        <div class="stat"><div class="n" id="s-btitle">-</div><div class="l">标题拦截 · 本月 <b id="m-btitle">0</b></div></div>
+        <div class="stat"><div class="n" id="s-thit">-</div><div class="l">TMDB 命中 · 本月 <b id="m-thit">0</b></div></div>
+        <div class="stat"><div class="n" id="s-tmiss">-</div><div class="l">TMDB 未收录 · 本月 <b id="m-tmiss">0</b></div></div>
+        <div class="stat"><div class="n" id="s-img">-</div><div class="l">封面缓存(MB)</div></div>
+        <div class="stat"><div class="n" id="s-up">-</div><div class="l">运行时长</div></div>
+      </div>
+      <div class="statrow">
+        <span class="muted" id="statsInfo">统计自 —</span>
+        <button class="ghost" onclick="resetStats()">清零统计</button>
+        <button class="ghost" onclick="clearImgs()">清理封面缓存</button>
+      </div>
+      <div class="muted" style="margin-top:8px">累计与本月数据存在 NAS 的 cache/stats.json，重启不清零；月度明细只保留当月，跨月自动覆盖。</div>
+    </div>
+    <div class="card">
+      <h2>机顶盒订阅地址</h2>
+      <div class="urlbox">
+        <code id="suburl">__SUB__</code>
+        <button class="ghost" onclick="copySub()">复制</button>
+      </div>
+      <div class="muted" style="margin-top:10px">TVBox → 设置 → 配置地址，填入以上地址后刷新。</div>
+    </div>
+    <div class="card">
+      <h2>实时在线设备 <small>只统计当日有数据流的设备，空闲超阈值不计入在线</small></h2>
+      <div class="grid" style="margin-bottom:12px">
+        <div class="stat"><div class="n" id="d-on">-</div><div class="l">实时在线</div></div>
+        <div class="stat"><div class="n" id="d-today">-</div><div class="l">今日接入设备</div></div>
+        <div class="stat"><div class="n" id="d-month">-</div><div class="l">本月接入设备</div></div>
+        <div class="stat"><div class="n" id="d-idle">-</div><div class="l">空闲阈值(分钟)</div></div>
+      </div>
+      <div class="statrow">
+        <span class="muted" id="d-info">日 / 月接入统计 —</span>
+        <span class="muted" id="d-trend"></span>
+      </div>
+      <div id="clients"></div>
+      <div class="muted" style="margin-top:8px">机顶盒拉配置、翻分类、加载封面都算一次数据流；阈值在「更新设置 → 在线检测」里改（1 分钟 ~ 24 小时）。日统计保留最近 31 天、月统计保留最近 6 个月，写入 cache/devices.json，重启不丢、到期自动覆盖；网关自身与 NAS 上的 LunaTV 服务（192.168.3.100）请求不计入设备。</div>
+    </div>
+  </section>
+
+  <!-- 屏蔽词 -->
+  <section class="pane" id="pane-words">
+    <div class="card">
+      <h2>过滤开关 <small>关闭后该项完全放行，不做任何拦截</small></h2>
+      <div class="field">
+        <div><div class="t">屏蔽功能总开关</div><div class="d">关闭后分类与标题都不做拦截，完全按源原样下发；下面两个细项会暂时失效但保留各自状态</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="filterOn" onchange="onFilterUI()"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">分类屏蔽</div><div class="d">按下方分类词库剔除分类；关闭后分类原样下发给机顶盒</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="catOn" onchange="onFilterUI()"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">标题屏蔽</div><div class="d">按下方标题词库过滤视频条目；关闭后标题不做二次过滤</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="titleOn" onchange="onFilterUI()"><i></i></label></div>
+      </div>
+      <div class="rowbtns" style="margin-top:14px">
+        <button onclick="saveFilter()">保存并生效</button>
+        <button class="ghost" onclick="loadWords()">还原</button>
+        <span class="muted" id="filterInfo">拨动开关后点「保存并生效」才会写入；机顶盒刷新配置或重开 App 后看到变化</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>分类屏蔽词 <small id="catHint">命中即从机顶盒分类栏剔除</small></h2>
+      <div class="chips" id="cats"></div>
+      <div class="addrow"><input type="text" id="newcat" placeholder="输入新词，回车添加，如：夜场"
+        onkeydown="if(event.key==='Enter')addWord('cat')"><button onclick="addWord('cat')">添加</button></div>
+      <div class="rowbtns"><button onclick="saveWords()">保存词库并生效</button><span class="muted">改完词库后保存，无需重启</span></div>
+    </div>
+    <div class="card">
+      <h2>标题屏蔽词 <small id="titleHint">搜索/列表条目二次过滤</small></h2>
+      <div class="chips" id="titles"></div>
+      <div class="addrow"><input type="text" id="newtitle" placeholder="输入新词，回车添加"
+        onkeydown="if(event.key==='Enter')addWord('title')"><button onclick="addWord('title')">添加</button></div>
+      <div class="rowbtns"><button onclick="saveWords()">保存词库并生效</button><span class="muted">保存后立即生效，无需重启</span></div>
+    </div>
+    <div class="card">
+      <h2>拦截测试</h2>
+      <div class="addrow"><input type="text" id="q" placeholder="输入片名或关键词，如：狂飙"
+        onkeydown="if(event.key==='Enter')runTest()"><button onclick="runTest()">测试</button></div>
+      <div id="testres" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <!-- 片源管理 -->
+  <section class="pane" id="pane-sources">
+    <div class="card">
+      <h2>加载模式 <small>下发给机顶盒的源越少，App 启动越快</small></h2>
+      <div class="field">
+        <div><div class="t">下发源数量</div><div class="d" id="srcLimitHint">「仅 1 个」时机顶盒启动只加载一个源，启动最快</div></div>
+        <div class="ctl">
+          <select class="sel" id="srcLimit">
+            <option value="0">全部启用源</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <div><div class="t">指定哪个源</div><div class="d">选「自动」则按上面片源列表的顺序取前 N 个</div></div>
+        <div class="ctl"><select class="sel" id="srcActive"><option value="">自动（按顺序）</option></select></div>
+      </div>
+      <div class="rowbtns"><button onclick="saveAll()">保存并生效</button>
+        <span class="muted">保存后机顶盒刷新配置即生效</span></div>
+    </div>
+    <div class="card">
+      <h2>搜索范围 <small>机顶盒搜索时用哪些源，不影响启动速度</small></h2>
+      <div class="field">
+        <div><div class="t">搜索全部源</div><div class="d">开启后，<b>主源</b>的搜索会同时查其它启用源并把结果合并进同一个列表（不管该源有没有下发）；关闭则主源只返回自己的结果。与下面的「额外聚合源数量」配合使用</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="searchAll" onchange="onSearchUI()"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">额外聚合源数量</div><div class="d" id="searchHint">—</div></div>
+        <div class="ctl">
+          <input class="sel" id="searchLimit" type="number" min="0" max="50" value="0" style="width:110px" oninput="onSearchUI()">
+        </div>
+      </div>
+      <div class="rowbtns" style="margin-top:14px">
+        <button onclick="saveSearch()">保存并生效</button>
+        <button class="ghost" onclick="loadSrc()">还原</button>
+        <span class="muted" id="searchInfo">0 = 全部额外源；N = 最多并入 N 个真正有结果的额外源（没有该片源的源不占名额）</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>片源列表 <small>仅影响机顶盒，不影响 LunaTV 网页</small></h2>
+      <div class="srcs" id="srclist"></div>
+      <div class="rowbtns">
+        <button onclick="saveAll()">保存并生效</button>
+        <button class="ghost" onclick="loadSrc()">还原</button>
+        <span class="muted">关闭开关 = 该源不出现在机顶盒；↑↓ 调整分类栏顺序</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 更新设置 -->
+  <section class="pane" id="pane-update">
+    <div class="card">
+      <h2>源同步</h2>
+      <div class="field">
+        <div><div class="t">自动同步 LunaTV 源列表</div><div class="d">开启后按下面的间隔自动读取 LunaTV 源列表与订阅配置；关闭后网关只用当前已缓存的源，不再访问 LunaTV（LunaTV 增删源不会同步过来，可随时手动「立即同步源」）</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="syncOn"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">片源列表同步间隔</div><div class="d">多久从 LunaTV 重新读取一次源列表（新增/删除源后按此间隔生效）</div></div>
+        <div class="ctl"><input type="number" class="num" id="syncMin" min="1" max="60" step="1"><span class="muted">分钟</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">配置缓存刷新间隔</div><div class="d">网关缓存订阅配置的时长，机顶盒请求直接读缓存秒开；后台按此间隔自动预热</div></div>
+        <div class="ctl"><input type="number" class="num" id="tvMin" min="1" max="120" step="1"><span class="muted">分钟</span></div>
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveUpdate()">保存设置</button>
+        <button class="ghost" onclick="syncNow()">立即同步源</button>
+        <span class="muted" id="syncInfo"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>封面兜底（TMDB）</h2>
+      <div class="field">
+        <div><div class="t">源封面取不到时用 TMDB 海报</div><div class="d">封面图 404 / 为空时，按片名去 TMDB 找一张海报顶上。TMDB 在部分国内网络下访问不了，关掉后完全使用原图，不再尝试 TMDB（列表与封面都不受影响，只是没封面的条目留空）。</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="tmdbOn"><i></i></label></div>
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveUpdate()">保存设置</button>
+        <button class="ghost" onclick="tmdbTest()">测试连通性</button>
+        <span class="muted" id="tmdbInfo"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>封面缓存 <small>网关把封面抓到 NAS，机顶盒翻页不再等源站</small></h2>
+      <div class="field">
+        <div><div class="t">启用封面缓存</div><div class="d">开启后封面经网关中转并缓存在 NAS（默认 30 天、上限 256MB），首页与分类页可秒开；关闭后网关不下载不落盘，封面地址原样交给机顶盒直连源站，加载会变慢但不再占用空间</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="imgOn"><i></i></label></div>
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveUpdate()">保存设置</button>
+        <button class="ghost" onclick="clearImgs()">清理封面缓存</button>
+        <span class="muted" id="imgInfo">已缓存 —</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>在线检测 <small>多久没有数据流就不再算在线设备</small></h2>
+      <div class="field">
+        <div><div class="t">空闲阈值</div><div class="d">设备超过这么久没有任何请求（拉配置 / 翻分类 / 加载封面）就从「实时在线」里移除，但仍计入当日接入；可设 1 ~ 1440 分钟（24 小时）</div></div>
+        <div class="ctl"><input type="number" class="num" id="idleMin" min="1" max="1440" step="1"><span class="muted">分钟</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">忽略设备 IP</div><div class="d">这些地址的请求不计入在线设备与日/月统计。默认已含 NAS 上的 LunaTV 服务 192.168.3.100；多个用英文逗号分隔</div></div>
+        <div class="ctl"><input type="text" id="ignoreDevs" style="width:250px" placeholder="192.168.3.100"></div>
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveOnline()">保存并生效</button>
+        <button class="ghost" onclick="loadUpdate()">还原</button>
+        <span class="muted" id="onlineInfo">—</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>配置备份</h2>
+      <div class="field">
+        <div><div class="t">保存时自动备份</div><div class="d">每次在页面保存配置前，自动把旧配置备份到 /vol1/1000/docker/tvbox-guard/backups/</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="backupOn"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">备份保留份数</div><div class="d">超出后自动删除最旧的备份</div></div>
+        <div class="ctl"><input type="number" class="num" id="backupKeep" min="1" max="50" step="1"><span class="muted">份</span></div>
+      </div>
+      <div class="rowbtns"><button onclick="saveUpdate()">保存设置</button></div>
+    </div>
+    <div class="card">
+      <h2>说明</h2>
+      <div class="muted" style="line-height:1.9">
+        · 机顶盒本身多久拉一次订阅由 TVBox 客户端决定，一般重启或手动「刷新配置」时更新。<br>
+        · 通过网关修改的配置（屏蔽词、源开关、排序、LOGO）与 LunaTV 完全独立，不会影响网页端。<br>
+        · 订阅配置由网关常驻内存缓存，机顶盒打开时直接命中，不再等 LunaTV 拉源（原 5-10 秒 → 毫秒级）。<br>
+        · 源分类/首页列表也做了短缓存，翻页与搜索始终实时。<br>
+        · 搜索走「搜索全部源 + 额外聚合源数量」配合：主源合并其它启用源的结果，数量限制真正有结果的额外源个数。<br>
+        · 概览「实时在线设备」按最后数据流时间判定在线，日/月接入统计落盘到 cache/devices.json，重启不丢；NAS 上的 LunaTV 服务（192.168.3.100）属服务流量，不计入设备。<br>
+        · 概览的四项统计（分类拦截 / 标题拦截 / TMDB 命中 / TMDB 未收录）累计与本月数据写入 NAS，重启不清零；月度明细只保留当月，跨月自动覆盖。<br>
+        · 修改 guard.py 代码后需执行 <code>docker compose up -d --force-recreate</code> 才生效。
+      </div>
+    </div>
+  </section>
+
+  <!-- LOGO 设置 -->
+  <section class="pane" id="pane-logo">
+    <div class="card">
+      <h2>启动 LOGO / 背景图 <small>展示在 TVBox 首页</small></h2>
+      <div class="logo-preview" id="logoBox"><span class="empty">暂无自定义 LOGO</span></div>
+      <div class="rowbtns">
+        <button onclick="document.getElementById('logoFile').click()">上传图片</button>
+        <button class="ghost" onclick="resetLogo()">恢复默认</button>
+        <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadLogo(this)">
+        <span class="muted" id="logoInfo">建议 16:9 横图，PNG/JPG/WebP，2MB 以内</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>说明</h2>
+      <div class="muted" style="line-height:1.9">
+        · 上传后立即替换机顶盒订阅里的 <code>wallpaper</code> 字段，机顶盒重启或刷新配置后生效。<br>
+        · 图片保存在 /vol1/1000/docker/tvbox-guard/logo.png，可直接覆盖同名文件。<br>
+        · 点「恢复默认」将回落到 LunaTV 自带的 LOGO。
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+let CFG={categories:[],titles:[]}, SRC=[], LOGO_TS=0;
+const TITLES={overview:['概览','运行状态与机顶盒订阅地址'],words:['屏蔽词','分类与标题双层过滤'],
+  sources:['片源管理','开关启用状态与显示顺序'],update:['更新设置','源同步与配置备份'],
+  logo:['LOGO 设置','TVBox 首页展示图']};
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');
+  clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2400);}
+
+$('nav').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+b.dataset.p));
+  $('pageTitle').textContent=TITLES[b.dataset.p][0];
+  $('pageSub').textContent=TITLES[b.dataset.p][1];
+  if(b.dataset.p==='sources') loadSrc();
+  if(b.dataset.p==='logo') loadLogo();
+});
+
+/* ---------- 通用 ---------- */
+async function api(path,opt){const r=await fetch(path,opt);return r.json();}
+
+/* ---------- 概览 ---------- */
+function fmtUp(s){s=Math.floor(s);const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
+  return d?d+'天'+h+'小时':(h?h+'小时'+m+'分':m+'分钟');}
+async function loadStatus(){
+  const st=await api('/api/status');
+  $('s-src').textContent=st.sources; $('s-on').textContent=st.sourcesEnabled??st.sources;
+  $('s-cat').textContent=st.cats; $('s-title').textContent=st.titles;
+  $('s-bcat').textContent=st.blockedCat??0; $('s-btitle').textContent=st.blockedTitle??0;
+  $('s-thit').textContent=st.tmdbHit??0; $('s-tmiss').textContent=st.tmdbMiss??0;
+  if($('m-bcat')) $('m-bcat').textContent=st.monthCat??0;
+  if($('m-btitle')) $('m-btitle').textContent=st.monthTitle??0;
+  if($('m-thit')) $('m-thit').textContent=st.monthHit??0;
+  if($('m-tmiss')) $('m-tmiss').textContent=st.monthMiss??0;
+  $('s-up').textContent=fmtUp(st.uptime);
+  if($('statsInfo')){
+    const since=st.statsSince?new Date(st.statsSince*1000).toLocaleString('zh-CN',{hour12:false}):'—';
+    $('statsInfo').textContent='统计自 '+since+'（'+(st.statsMonth||'')+'）· 分类 '+(st.monthCat??0)+
+      ' / 标题 '+(st.monthTitle??0)+' / TMDB 命中 '+(st.monthHit??0)+' / 未收录 '+(st.monthMiss??0);
+  }
+  $('s-img').textContent=(st.imgMB??0);
+  $('pillText').textContent='运行中 · '+(st.sourcesEnabled??st.sources)+'/'+st.sources+' 源启用';
+  const off=[];
+  if(st.filterOn===false) off.push('屏蔽已关闭');
+  if(st.syncOn===false) off.push('源同步已关闭');
+  if(st.imgOn===false) off.push('封面缓存已关闭');
+  if(st.tmdbOn===false) off.push('TMDB 已关闭');
+  $('pageSub').textContent='运行中 · 在线 '+(st.devices?st.devices.online:0)+' 台 · 已纳管 '+st.sources+' 个片源 · 词库 '+(st.cats+st.titles)+' 条'+(off.length?' · '+off.join(' / '):'');
+  renderClients(st.devices||{});
+}
+async function resetStats(){
+  if(!confirm('确定清零统计？将同时清零「分类拦截 / 标题拦截 / TMDB 命中 / TMDB 未收录」的累计与本月数据，清零后从 0 重新记录。')) return;
+  const j=await api('/api/stats/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j.ok){toast('统计已清零');loadStatus();}else toast('清零失败');
+}
+async function clearImgs(){
+  if(!confirm('清空本地封面缓存？清完下次访问会重新从源站下载（只影响加载速度，不影响内容）。')) return;
+  const j=await api('/api/img/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j.ok){toast('已清理 '+j.files+' 张 / '+j.mb+' MB');loadStatus();}else toast('清理失败');
+}
+function agoText(s){
+  s=+s||0;
+  if(s<60) return Math.round(s)+' 秒前';
+  if(s<3600) return Math.round(s/60)+' 分钟前';
+  if(s<86400) return (s/3600).toFixed(1)+' 小时前';
+  return Math.round(s/86400)+' 天前';
+}
+function renderClients(dev){
+  const el=$('clients'); if(!el) return;
+  const list=(dev&&dev.devices)||[];
+  if($('d-on')) $('d-on').textContent=dev&&dev.online!=null?dev.online:0;
+  if($('d-today')) $('d-today').textContent=dev&&dev.today!=null?dev.today:0;
+  if($('d-month')) $('d-month').textContent=dev&&dev.monthDevices!=null?dev.monthDevices:0;
+  if($('d-idle')) $('d-idle').textContent=dev&&dev.idleMin!=null?dev.idleMin:0;
+  if($('d-info')){
+    const d=dev&&dev.day?dev.day:'—', m=dev&&dev.month?dev.month:'—';
+    $('d-info').textContent='日 '+d+' 请求 '+(dev&&dev.dayRequests||0)+' 次 · 月 '+m+' 请求 '+(dev&&dev.monthRequests||0)+' 次';
+  }
+  if($('d-trend')){
+    const tr=(dev&&dev.trend)||[];
+    if(!tr.length){ $('d-trend').innerHTML=''; }
+    else{
+      const mx=Math.max(1,...tr.map(x=>x.n));
+      $('d-trend').innerHTML='<span style="margin-right:8px">近 7 日</span><span class="trend">'
+        +tr.map((x,i)=>{
+          const h=Math.max(3,Math.round(x.n/mx*26));
+          const now=i===tr.length-1;
+          return '<span class="b'+(now?' now':'')+'" title="'+x.day+' · '+x.n+' 次 · '+x.devices+' 台设备">'
+            +'<span>'+(x.n||0)+'</span><i style="height:'+h+'px"></i>'
+            +'<span style="opacity:.7">'+x.day.slice(5)+'</span></span>';
+        }).join('')+'</span>';
+    }
+  }
+  if(!list.length){
+    el.innerHTML='<div class="muted">今日暂无设备接入。机顶盒打开影视 App 或切换一次分类后就会出现。</div>';
+    return;
+  }
+  let h='';
+  list.forEach(c=>{
+    const on=!!c.online;
+    const dot='<span class="dot" style="width:7px;height:7px;box-shadow:none;background:'+(on?'var(--green)':'#4a5262')+'"></span>';
+    const tag='<span style="font-size:12px;color:'+(on?'#7ee2a7':'#6f778a')+';min-width:42px">'+(on?'在线':'离线')+'</span>';
+    const path=(c.path||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(128,128,128,.15);flex-wrap:wrap">'
+      +dot
+      +'<code style="min-width:112px;font-weight:600">'+(c.ip||'')+'</code>'
+      +tag
+      +'<span class="muted" style="flex:1;min-width:88px">'+path+'</span>'
+      +'<span class="muted" style="min-width:70px;text-align:right">今日 '+c.n+' 次</span>'
+      +'<span class="muted" style="min-width:70px;text-align:right">本月 '+(c.month||0)+' 次</span>'
+      +'<span class="muted" style="min-width:70px;text-align:right">累计 '+(c.total||0)+' 次</span>'
+      +'<span class="muted" style="min-width:80px;text-align:right">'+(on?'活跃 ':'空闲 ')+agoText(c.ago)+'</span>'
+      +'</div>';
+  });
+  el.innerHTML=h;
+}
+
+/* ---------- 屏蔽词 ---------- */
+function renderChips(){
+  [['cats','categories'],['titles','titles']].forEach(([box,key])=>{
+    const el=$(box);el.innerHTML='';
+    CFG[key].forEach((w,i)=>{
+      const d=document.createElement('div');d.className='chip';
+      const b=document.createElement('b');b.textContent=w;
+      const s=document.createElement('span');s.textContent='×';s.title='移除';
+      s.onclick=()=>{CFG[key].splice(i,1);renderChips();};
+      d.appendChild(b);d.appendChild(s);el.appendChild(d);
+    });
+  });
+}
+function addWord(kind){
+  const inp=kind==='cat'?$('newcat'):$('newtitle'), key=kind==='cat'?'categories':'titles';
+  const v=inp.value.trim(); if(!v) return;
+  if(!CFG[key].includes(v)){CFG[key].push(v);renderChips();}
+  inp.value='';
+}
+async function loadWords(){
+  const c=await api('/api/config');
+  CFG.categories=c.categories||[];CFG.titles=c.titles||[];renderChips();
+  CFG.sourceLimit=c.sourceLimit||0; CFG.activeSource=c.activeSource||'';
+  if($('filterOn')) $('filterOn').checked=(c.filterEnabled!==false);
+  if($('catOn')) $('catOn').checked=(c.categoryFilterEnabled!==false);
+  if($('titleOn')) $('titleOn').checked=(c.titleFilterEnabled!==false);
+  paintFilterUI(false);
+}
+function paintFilterUI(dirty){
+  const allOn=$('filterOn').checked, catOn=$('catOn').checked, titleOn=$('titleOn').checked;
+  if($('catOn')) $('catOn').disabled=!allOn;
+  if($('titleOn')) $('titleOn').disabled=!allOn;
+  const wr='var(--warn,#ffb020)';
+  if($('catHint')){
+    $('catHint').textContent=!allOn?'总开关已关闭 · 全部放行':(catOn?'命中即从机顶盒分类栏剔除':'已关闭 · 分类原样放行');
+    $('catHint').style.color=(!allOn||!catOn)?wr:'';
+  }
+  if($('titleHint')){
+    $('titleHint').textContent=!allOn?'总开关已关闭 · 全部放行':(titleOn?'搜索/列表条目二次过滤':'已关闭 · 标题不过滤');
+    $('titleHint').style.color=(!allOn||!titleOn)?wr:'';
+  }
+  document.querySelectorAll('.field').forEach(f=>{
+    const sw=f.querySelector('#catOn,#titleOn');
+    if(sw) f.style.opacity=allOn?'':'0.45';
+  });
+  if(dirty && $('filterInfo')) $('filterInfo').textContent='有未保存的改动 · 点「保存并生效」写入';
+}
+function onFilterUI(){ paintFilterUI(true); }
+async function saveFilter(){
+  const body={filterEnabled:$('filterOn').checked,
+              categoryFilterEnabled:$('catOn').checked,
+              titleFilterEnabled:$('titleOn').checked};
+  const j=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j.ok){
+    const txt=[body.filterEnabled?'总开关开':'总开关关'];
+    if(body.filterEnabled) txt.push(body.categoryFilterEnabled?'分类屏蔽开':'分类屏蔽关',body.titleFilterEnabled?'标题屏蔽开':'标题屏蔽关');
+    toast('已保存：'+txt.join(' · '));
+    if($('filterInfo')) $('filterInfo').textContent='已保存并生效 · 机顶盒刷新配置或重开 App 后看到变化';
+    paintFilterUI(false); loadStatus();
+  } else toast('保存失败：'+(j.error||'未知错误'));
+}
+async function saveAll(){
+  const j=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({disabledSources:SRC.filter(s=>s.disabled).map(s=>s.key),
+      sourceOrder:SRC.map(s=>s.key),
+      sourceLimit:+$('srcLimit').value||0,
+      activeSource:$('srcActive').value||''})});
+  if(j.ok){toast('片源设置已保存');loadStatus();}
+  else toast('保存失败：'+(j.error||'未知错误'));
+}
+
+async function saveWords(){
+  const j=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({categories:CFG.categories,titles:CFG.titles})});
+  if(j.ok){toast('词库已保存：分类 '+j.cats+' 条 · 标题 '+j.titles+' 条');loadWords();loadStatus();}
+  else toast('保存失败：'+(j.error||'未知错误'));
+}
+
+let SRCINFO={};
+function paintSearchUI(j){
+  if(j) SRCINFO=j;
+  const en=SRCINFO.enabled??SRC.filter(s=>!s.disabled).length;
+  const ex=SRCINFO.searchExtraTotal??Math.max(0,en-1);
+  const primary=SRCINFO.searchPrimary||'';
+  const on=$('searchAll')?$('searchAll').checked:true;
+  const lim=$('searchLimit'), cur=Math.max(0,Math.round(+((lim&&lim.value)||0)));
+  if(lim){
+    lim.max=String(Math.max(1,ex));
+    lim.disabled=!on||ex<=0;
+    lim.style.opacity=(!on||ex<=0)?'0.45':'';
+  }
+  if($('searchHint')){
+    const base='主源 '+(primary||'—')+' · 启用 '+en+' 个源 · 可聚合额外源 '+ex+' 个';
+    let t;
+    if(!on) t='已关闭 · 只搜主源自己的结果（'+primary+'）';
+    else if(ex<=0) t='没有其它启用源可聚合 · '+base;
+    else if(cur<=0) t='并入全部 '+ex+' 个额外源 · '+base;
+    else t='最多并入 '+Math.min(cur,ex)+' 个有结果的额外源 · '+base;
+    $('searchHint').textContent=t;
+  }
+  if($('searchInfo') && $('searchInfo').dataset.dirty!=='1'){
+    $('searchInfo').textContent=on
+      ? '0 = 全部额外源；N = 最多并入 N 个真正有结果的额外源（没有该片源的源不占名额）'
+      : '搜索全部源已关闭 · 主源只搜自己，额外聚合源数量暂不生效';
+  }
+}
+function onSearchUI(){
+  if($('searchLimit')){
+    const ex=SRCINFO.searchExtraTotal??Math.max(0,(SRCINFO.enabled??0)-1);
+    let v=Math.round(+$('searchLimit').value||0);
+    if(v<0) v=0;
+    if(ex>0 && v>ex){ v=ex; $('searchLimit').value=String(v); }
+  }
+  paintSearchUI();
+  if($('searchInfo')){
+    $('searchInfo').dataset.dirty='1';
+    $('searchInfo').textContent='有未保存的改动 · 点「保存并生效」写入';
+  }
+}
+async function saveSearch(){
+  const j=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({searchAllSources:$('searchAll').checked,
+      searchLimit:+$('searchLimit').value||0})});
+  if(j.ok){
+    toast('搜索范围已保存');
+    if($('searchInfo')){ $('searchInfo').dataset.dirty='0';
+      $('searchInfo').textContent='已保存 · 机顶盒刷新配置后生效'; }
+    loadSrc(); loadStatus();
+  } else toast('保存失败：'+(j.error||''));
+}
+async function runTest(){
+  const q=$('q').value.trim(); if(!q) return;
+  $('testres').innerHTML='<span class="muted">测试中…</span>';
+  const j=await api('/api/test?q='+encodeURIComponent(q));
+  if(!j.ok){$('testres').innerHTML='<span class="muted">失败：'+(j.error||'')+'</span>';return;}
+  const rows=j.results.map(x=>`<tr><td>${x.name}</td><td>${x.raw}</td><td>${x.kept}</td>
+    <td class="${x.raw-x.kept>0?'bad':'ok'}">${x.raw-x.kept}</td></tr>`).join('');
+  $('testres').innerHTML=`<div class="muted" style="margin-bottom:8px">关键词${j.wordBlocked?'<b style="color:#ff6b6b">命中屏蔽词</b>':'未命中屏蔽词'} · 各源经网关返回：</div>
+    <table><tr><th>片源</th><th>源原始</th><th>过滤后</th><th>拦截</th></tr>${rows}</table>`;
+}
+
+/* ---------- 片源 ---------- */
+function renderSrc(){
+  const box=$('srclist'); box.innerHTML='';
+  if(!SRC.length){box.innerHTML='<div class="muted">暂无片源</div>';return;}
+  SRC.forEach((s,i)=>{
+    const row=document.createElement('div'); row.className='srcrow'+(s.disabled?' off':'');
+    const sw=document.createElement('label'); sw.className='switch';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!s.disabled;
+    cb.onchange=()=>{SRC[i].disabled=!cb.checked;renderSrc();};
+    const ii=document.createElement('i'); sw.appendChild(cb); sw.appendChild(ii);
+    const name=document.createElement('div'); name.className='srcname';
+    const n1=document.createElement('div'); n1.textContent=s.name;
+    const n2=document.createElement('div'); n2.className='srckey'; n2.textContent=s.key+(s.disabled?' · 已关闭':'');
+    name.appendChild(n1); name.appendChild(n2);
+    const arr=document.createElement('div'); arr.className='arrows';
+    const up=document.createElement('button'); up.textContent='↑'; up.disabled=(i===0);
+    up.onclick=()=>{if(i>0){[SRC[i-1],SRC[i]]=[SRC[i],SRC[i-1]];renderSrc();}};
+    const dn=document.createElement('button'); dn.textContent='↓'; dn.disabled=(i===SRC.length-1);
+    dn.onclick=()=>{if(i<SRC.length-1){[SRC[i+1],SRC[i]]=[SRC[i],SRC[i+1]];renderSrc();}};
+    arr.appendChild(up); arr.appendChild(dn);
+    row.appendChild(sw); row.appendChild(name); row.appendChild(arr);
+    box.appendChild(row);
+  });
+}
+async function loadSrc(){
+  const [j,c]=await Promise.all([api('/api/sources'),api('/api/config')]);
+  SRC=j.sources||[];renderSrc();
+  if(c){CFG.sourceLimit=c.sourceLimit||0; CFG.activeSource=c.activeSource||'';}
+  const sel=$('srcActive'); if(!sel) return;
+  const cur=sel.value||CFG.activeSource||'';
+  sel.innerHTML='<option value="">自动（按顺序）</option>';
+  SRC.filter(s=>!s.disabled).forEach(s=>{
+    const o=document.createElement('option'); o.value=s.key; o.textContent=s.name; sel.appendChild(o);
+  });
+  sel.value=cur;
+  const lim=$('srcLimit');
+  if(lim){
+    const n=SRC.filter(s=>!s.disabled).length;
+    const curVal=String(CFG.sourceLimit||0);
+    lim.innerHTML='<option value="0">全部启用源（'+n+' 个）</option>';
+    for(let i=1;i<=n;i++){
+      const o=document.createElement('option'); o.value=String(i);
+      o.textContent='仅 '+i+' 个'+(i===1?'（最快）':''); lim.appendChild(o);
+    }
+    lim.value=curVal; if(lim.value!==curVal) lim.value='0';
+  }
+  if($('srcLimitHint')) $('srcLimitHint').textContent='LunaTV 共 '+SRC.length+' 个源，已启用 '+SRC.filter(s=>!s.disabled).length+' 个';
+  if($('searchAll')) $('searchAll').checked=(j.searchAllSources!==false);
+  if($('searchLimit')) $('searchLimit').value=String(j.searchLimit||0);
+  paintSearchUI(j);
+}
+
+/* ---------- 更新设置 ---------- */
+async function loadUpdate(){
+  const s=await api('/api/settings');
+  $('syncMin').value=s.sourceSyncMinutes||5;
+  $('backupOn').checked=!!s.backupOnSave;
+  $('backupKeep').value=s.backupKeep||5;
+  $('tvMin').value=s.tvboxRefreshMinutes||5;
+  if($('tmdbOn')) $('tmdbOn').checked=s.tmdbEnabled!==false;
+  if($('syncOn')) $('syncOn').checked=s.sourceSyncEnabled!==false;
+  if($('imgOn')) $('imgOn').checked=s.imageCacheEnabled!==false;
+  if($('imgInfo')) $('imgInfo').textContent='已缓存 '+(s.imgEntries??0)+' 张 / '+(s.imgMB??0)+' MB';
+  if($('idleMin')) $('idleMin').value=s.onlineIdleMinutes||5;
+  if($('onlineInfo')) $('onlineInfo').textContent='当前阈值 '+(s.onlineIdleMinutes||5)+' 分钟（1 ~ 1440）';
+  if($('ignoreDevs')) $('ignoreDevs').value=(s.ignoreDevices||[]).join(', ');
+  if($('tmdbInfo')) $('tmdbInfo').textContent='已兜底 '+(s.tmdbHit??0)+' 张 · 未收录 '+(s.tmdbMiss??0)+' 张';
+  const bits=[];
+  if(s.lastSyncAgo!=null) bits.push('源列表 '+Math.round(s.lastSyncAgo)+' 秒前同步');
+  if(s.tvboxCacheAgo!=null) bits.push('配置缓存 '+Math.round(s.tvboxCacheAgo)+' 秒前（构建 '+s.tvboxBuildSec+'s）');
+  $('syncInfo').textContent=bits.join(' · ');
+}
+async function saveUpdate(){
+  const j=await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({sourceSyncMinutes:+$('syncMin').value||5,
+      backupOnSave:$('backupOn').checked, backupKeep:+$('backupKeep').value||5,
+      tmdbEnabled:$('tmdbOn')?$('tmdbOn').checked:true,
+      sourceSyncEnabled:$('syncOn')?$('syncOn').checked:true,
+      imageCacheEnabled:$('imgOn')?$('imgOn').checked:true,
+      tvboxRefreshMinutes:+$('tvMin').value||5})});
+  if(j.ok) toast('更新设置已保存'); else toast('保存失败：'+(j.error||''));
+  loadUpdate(); loadStatus();
+}
+async function saveOnline(){
+  let v=Math.round(+$('idleMin').value||5);
+  const fixed=Math.max(1,Math.min(1440,v));
+  if(fixed!==v){ $('idleMin').value=fixed; toast('已按 1 ~ 1440 分钟修正为 '+fixed); }
+  const ig=($('ignoreDevs')?$('ignoreDevs').value:'')
+    .split(/[,，\s]+/).map(x=>x.trim()).filter(Boolean);
+  const j=await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({onlineIdleMinutes:fixed, ignoreDevices:ig})});
+  if(j.ok){
+    toast('阈值 '+fixed+' 分钟 · 忽略 '+(j.ignoreDevices||[]).length+' 个地址');
+    if($('onlineInfo')) $('onlineInfo').textContent='当前阈值 '+fixed+' 分钟 · 已生效';
+    loadUpdate(); loadStatus();
+  } else toast('保存失败：'+(j.error||''));
+}
+async function tmdbTest(){
+  if($('tmdbInfo')) $('tmdbInfo').textContent='检测中…';
+  try{
+    const j=await api('/api/tmdb_test');
+    if($('tmdbInfo')) $('tmdbInfo').textContent=j.ok?('TMDB 可访问 · '+j.ms+'ms'):('TMDB 不可访问（'+j.ms+'ms）：'+(j.error||'超时'));
+  }catch(e){
+    if($('tmdbInfo')) $('tmdbInfo').textContent='TMDB 不可访问';
+  }
+}
+async function syncNow(){
+  const j=await api('/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j.ok){toast('已同步 '+j.sources+' 个源');loadStatus();loadSrc();loadUpdate();}
+  else toast('同步失败：'+(j.error||''));
+}
+
+/* ---------- LOGO ---------- */
+function renderLogo(){
+  const box=$('logoBox');
+  box.innerHTML='';
+  const img=document.createElement('img');
+  img.src='/logo.png?t='+LOGO_TS;
+  img.onload=()=>{box.innerHTML='';box.appendChild(img);};
+  img.onerror=()=>{box.innerHTML='<span class="empty">暂无自定义 LOGO</span>';};
+  $('logoInfo').textContent=LOGO_TS?'已自定义（点击上传可替换）':'建议 16:9 横图，PNG/JPG/WebP，2MB 以内';
+}
+async function loadLogo(){const s=await api('/api/settings');LOGO_TS=s.logoUpdated||0;renderLogo();}
+function uploadLogo(inp){
+  const f=inp.files[0]; if(!f) return;
+  if(f.size>2*1024*1024){toast('图片超过 2MB，请压缩后再传');inp.value='';return;}
+  const rd=new FileReader();
+  rd.onload=async()=>{
+    const j=await api('/api/logo',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({data:rd.result})});
+    if(j.ok){toast('LOGO 已更新');LOGO_TS=j.updated||Date.now();renderLogo();}
+    else toast('上传失败：'+(j.error||''));
+    inp.value='';
+  };
+  rd.readAsDataURL(f);
+}
+async function resetLogo(){
+  const j=await api('/api/logo',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({reset:true})});
+  if(j.ok){toast('已恢复默认 LOGO');LOGO_TS=j.updated||0;renderLogo();}
+  else toast('操作失败：'+(j.error||''));
+}
+
+/* ---------- 订阅地址 ---------- */
+function copySub(){
+  const t=$('suburl').textContent;
+  navigator.clipboard.writeText(t).then(()=>toast('订阅地址已复制')).catch(()=>toast(t));
+}
+
+loadStatus(); loadWords().then(()=>{loadSrc();}); loadUpdate(); loadLogo();
+setInterval(loadStatus,15000);
+</script></body></html>
