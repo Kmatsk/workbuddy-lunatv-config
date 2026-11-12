@@ -62,6 +62,7 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 .srcrow[draggable]{cursor:grab}
 .srcrow.dragging{opacity:.45;border-color:var(--blue);background:#1a2233}
 .srcrow.over{border-top:2px solid var(--blue)}
+.srcrow.catsub{background:#0f1218}
 .srcname{flex:1;font-size:13px}
 .srckey{font-size:11px;color:#6f778a;font-family:ui-monospace,monospace}
 .grip{flex:0 0 auto;color:#6f778a;font-size:16px;user-select:none;cursor:grab;padding:0 2px;letter-spacing:-2px}
@@ -79,6 +80,47 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 .trend .b i{display:block;width:14px;border-radius:3px;min-height:3px;background:#3a4256}
 .trend .b.now i{background:linear-gradient(180deg,#4f8cff,#2b4f9e)}
 
+/* 流量：实时速率单位、走势柱、设备表 */
+.stat .n .unit{font-size:12px;font-weight:400;color:var(--muted);margin-left:3px}
+.spark{display:inline-flex;align-items:flex-end;gap:2px;height:26px;margin-left:2px}
+.spark i{display:block;width:4px;min-height:2px;background:#3a4256;border-radius:2px}
+.spark i.hot{background:linear-gradient(180deg,#4f8cff,#2b4f9e)}
+.spark i.z{background:#232836}
+.devtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.devtbl th{font-size:11.5px;color:var(--muted);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--line2);white-space:nowrap}
+.devtbl td{padding:8px;border-bottom:1px solid rgba(128,128,128,.12);white-space:nowrap;vertical-align:middle}
+.devtbl td.ip{font-family:ui-monospace,Menlo,Consolas,monospace;color:#7ee2b8;min-width:118px}
+.devtbl td.mac{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:#9aa3b8;letter-spacing:.2px;cursor:copy;min-width:132px}
+.devtbl td.path{max-width:170px;overflow:hidden;text-overflow:ellipsis;color:var(--muted);white-space:nowrap}
+.devtbl td.num{text-align:right;font-variant-numeric:tabular-nums;min-width:64px}
+.devtbl td.num b{font-weight:600;color:#e6e8ee}
+.devtbl tr.off td{opacity:.62}
+.cachetbl td{white-space:normal}
+.cachetbl td.nm{font-weight:600;min-width:158px}
+.cachetbl td.desc{color:var(--muted);font-size:11.8px;line-height:1.65;min-width:280px}
+.cachetbl td.num{text-align:right;font-variant-numeric:tabular-nums;min-width:56px}
+.cachetbl td.when{color:var(--muted);min-width:96px}
+.cachetbl td.act{text-align:right;min-width:66px}
+.cachetbl button{padding:5px 10px;font-size:12px}
+.cachetbl tr.dead td{opacity:.55}
+.cachetbl tbody tr:hover{background:rgba(128,128,128,.06)}
+.autobar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.autobar .sel{padding:6px 9px;font-size:12px;min-width:88px}
+
+.hbars{display:inline-flex;gap:2px;align-items:center;margin-left:6px}
+.hbars i{width:5px;height:11px;border-radius:2px;background:#39415a;display:block}
+.hbars i.ok{background:#3ddc84}
+.hbars i.bad{background:#ff6b6b}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid #2c3142;background:#1b1f28;color:#9aa3b8;white-space:nowrap}
+.st.ok{color:#7ee2a7;background:#16231b;border-color:#1f3b2b}
+.st.bad{color:#ff9b9b;background:#2a1b1b;border-color:#5a2a2a}
+.st.off{color:#ffcf7a;background:#2a2318;border-color:#574521}
+.st.wait{color:#8fb6ff;background:#182031;border-color:#2a3c5e}
+td .op{background:#20242f;color:#c9d0df;padding:4px 9px;font-size:11.5px;border-radius:6px;margin-right:6px}
+td .op:hover{background:#2a3040}
+td .op.warn:hover{background:#3a2226;color:#ff8c8c}
+.deep{position:relative;display:inline-block;width:70px;height:6px;background:#20242f;border-radius:999px;vertical-align:middle;overflow:hidden}
+.deep i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#2b6cff,#3ddc84);border-radius:999px}
 .switch{position:relative;display:inline-block;width:40px;height:22px;flex:0 0 40px}
 .switch input{display:none}
 .switch i{position:absolute;inset:0;background:#333a4a;border-radius:999px;transition:.2s;cursor:pointer}
@@ -122,11 +164,16 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
     <button data-p="words">屏蔽词</button>
     <button data-p="sources">片源管理</button>
     <button data-p="srclist">片源列表</button>
+    <button data-p="srcstat">源检测</button>
+    <button data-p="agg">采集源</button>
+    <button data-p="sched">采集调度</button>
+    <button data-p="aggcats">分类</button>
     <button data-p="search">搜索统计</button>
     <button data-p="update">更新设置</button>
+    <button data-p="cache">缓存管理</button>
     <button data-p="logo">LOGO 设置</button>
   </nav>
-  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v2.0</span></div>
+  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v2.5</span></div>
 </aside>
 
 <main>
@@ -159,7 +206,7 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
         <button class="ghost" onclick="resetStats()">清零统计</button>
         <button class="ghost" onclick="clearImgs()">清理封面缓存</button>
       </div>
-      <div class="muted" style="margin-top:8px">累计与本月数据存在 NAS 的 cache/stats.json，重启不清零；月度明细只保留当月，跨月自动覆盖。</div>
+      <div class="muted" style="margin-top:8px">累计与本月数据存在 NAS 的 cache/stats.json，重启不清零；月度明细只保留当月，跨月自动覆盖。「清零统计」只清这四项拦截 / TMDB 计数，流量在下方「流量统计」卡里用「清零流量」单独清零。</div>
     </div>
     <div class="card">
       <h2>机顶盒订阅地址</h2>
@@ -168,6 +215,34 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
         <button class="ghost" onclick="copySub()">复制</button>
       </div>
       <div class="muted" style="margin-top:10px">TVBox → 设置 → 配置地址，填入以上地址后刷新。</div>
+    </div>
+    <div class="card" id="trafficCard">
+      <h2>流量统计 <small id="t-port">本端口独立统计</small></h2>
+      <div class="grid" style="margin-bottom:12px">
+        <div class="stat"><div class="n"><span id="t-now">0</span><span class="unit" id="t-nowu">B/s</span></div><div class="l">实时速率 · 近 10 秒</div></div>
+        <div class="stat"><div class="n"><span id="t-avg">0</span><span class="unit" id="t-avgu">B/s</span></div><div class="l">近 1 分钟平均</div></div>
+        <div class="stat"><div class="n" id="t-day">0 B</div><div class="l">今日流量</div></div>
+        <div class="stat"><div class="n" id="t-month">0 B</div><div class="l">本月流量</div></div>
+        <div class="stat"><div class="n" id="t-total">0 B</div><div class="l">累计流量</div></div>
+      </div>
+      <div class="statrow autobar">
+        <label class="switch"><input type="checkbox" id="autoOn" onchange="toggleAuto()"><i></i></label>
+        <span class="muted">自动刷新</span>
+        <select class="sel" id="autoSec" onchange="setAutoSec()">
+          <option value="5">5 秒</option>
+          <option value="10">10 秒</option>
+          <option value="15" selected>15 秒</option>
+          <option value="30">30 秒</option>
+          <option value="60">1 分钟</option>
+          <option value="120">2 分钟</option>
+          <option value="300">5 分钟</option>
+        </select>
+        <span class="spark" id="t-spark"></span>
+        <button class="ghost" onclick="loadStatus()">立即刷新</button>
+        <button class="ghost" onclick="resetTraffic()">清零流量</button>
+        <span class="muted" id="autoInfo">自动刷新已关闭</span>
+      </div>
+      <div class="muted" style="margin-top:8px">只统计<b>本端口</b>的机顶盒数据流（订阅 / 列表 / 详情 / 封面），3032 与 3035 各记各的账、互不叠加，管理页自身与 NAS 服务流量不计入。「清零流量」只清今日/本月/累计与各设备流量，不影响「清零统计」里的拦截图数。自动刷新要手动开启才生效：关掉网页即停止，下次打开默认关闭；切到别的页面时也不发请求。今日 / 本月 / 累计写入 cache/traffic.json，重启不清零。</div>
     </div>
     <div class="card">
       <h2>实时在线设备 <small>只统计当日有数据流的设备，空闲超阈值不计入在线</small></h2>
@@ -182,8 +257,24 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
         <span class="muted" id="d-trend"></span>
         <button class="ghost" onclick="resetDevices()">清零设备统计</button>
       </div>
-      <div id="clients"></div>
-      <div class="muted" style="margin-top:8px">机顶盒拉配置、翻分类、加载封面都算一次数据流；阈值在「更新设置 → 在线检测」里改（1 分钟 ~ 24 小时）。日统计保留最近 31 天、月统计保留最近 6 个月，写入 cache/devices.json，重启不丢、到期自动覆盖；网关自身与 NAS 上的 LunaTV 服务（192.168.3.100）请求不计入设备。点「清零设备统计」会把实时在线、今日/本月接入与近 7 日趋势一起清零，设备下次访问后重新累计。</div>
+      <div style="overflow-x:auto;margin-top:12px">
+        <table class="devtbl" id="devtbl">
+          <thead><tr>
+            <th style="width:52px">状态</th>
+            <th>设备 IP</th>
+            <th>MAC 地址</th>
+            <th style="text-align:right">实时</th>
+            <th style="text-align:right">今日流量</th>
+            <th style="text-align:right">本月流量</th>
+            <th style="text-align:right">累计流量</th>
+            <th style="text-align:right">请求 今日/本月/累计</th>
+            <th style="text-align:right">最后活跃</th>
+            <th>最近路径</th>
+          </tr></thead>
+          <tbody><tr><td colspan="10" class="muted">加载中…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="muted" style="margin-top:8px">机顶盒拉配置、翻分类、加载封面都算一次数据流；阈值在「更新设置 → 在线检测」里改（1 分钟 ~ 24 小时）。MAC 取自 NAS 的局域网 ARP 表，用来确认设备唯一性：同一台设备换了 IP，看 MAC 就能对上；找不到时显示「—」。日统计保留最近 31 天、月统计保留最近 6 个月，写入 cache/devices.json，重启不丢；网关自身与 NAS 上的 LunaTV 服务（192.168.3.100）请求不计入设备。「实时」为该设备近 30 秒的平均出向速率，流量只算本端口，3032 / 3035 各自独立。点「清零设备统计」只清设备与次数，流量走上方「清零流量」。</div>
     </div>
   </section>
 
@@ -215,6 +306,13 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 
   <!-- 屏蔽词 -->
   <section class="pane" id="pane-words">
+    <div class="card" id="adultNotice" style="display:none">
+      <h2>实例说明 <small>本实例不做屏蔽</small></h2>
+      <div class="muted" style="line-height:1.9">
+        这一套跑在 <b>3035</b> 端口，与 3032 共用同一个 LunaTV 源池：<b>屏蔽功能已强制关闭</b>，聚合源保留全部大分类与细分类（含伦理、福利、里番等），按各源原本的归属挂载。<br>
+        下方的开关与词库在本实例不生效（改了也会被忽略），需要屏蔽请用 3032 那套。
+      </div>
+    </div>
     <div class="card">
       <h2>过滤开关 <small>关闭后该项完全放行，不做任何拦截</small></h2>
       <div class="field">
@@ -338,11 +436,24 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
         <span class="muted" id="srcListInfo">—</span>
         <button class="ghost" onclick="loadSrc()">重新读取</button>
       </div>
+      <div class="field" style="border-top:0;margin-top:0;padding-top:0">
+        <div>
+          <div class="t">排序方式</div>
+          <div class="d"><b>手动排序</b>：按下面拖出来的顺序下发；<b>自动排序</b>：按「源检测」测到的响应时间，延时小的排最前，每轮检测后自动调整（不用再拖）</div>
+        </div>
+        <div class="ctl">
+          <select class="sel" id="slSortMode" style="width:170px" onchange="setSortMode(this.value)">
+            <option value="manual">手动排序（拖拽）</option>
+            <option value="auto">按响应时间自动排序</option>
+          </select>
+          <span class="muted" id="slSortHint">—</span>
+        </div>
+      </div>
       <div class="srcs" id="srclist"></div>
       <div class="rowbtns">
         <button onclick="saveAll()">保存并生效</button>
         <button class="ghost" onclick="loadSrc()">还原</button>
-        <span class="muted">关闭开关 = 该源不出现在机顶盒；按住行拖动调整分类栏顺序，保存后生效</span>
+        <span class="muted" id="slTip">关闭开关 = 该源不出现在机顶盒；按住行拖动调整分类栏顺序，保存后生效</span>
       </div>
     </div>
     <div class="card">
@@ -351,6 +462,294 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
         · 这里的顺序就是机顶盒分类栏里站点的先后顺序，也是「加载模式 → 自动」取前 N 个的依据。<br>
         · 关闭某个源 = 不下发、不参与聚合搜索；LunaTV 网页里停用的源也会自动显示为关闭，无法在这里单独打开。<br>
         · 主源异常自动切备源、搜索范围等设置在「片源管理」页。
+      </div>
+    </div>
+  </section>
+
+  <!-- 源检测 -->
+  <section class="pane" id="pane-srcstat">
+    <div class="card">
+      <h2>检测概览 <small>按间隔自动探测全部源 · 连续失败自动停用 · 恢复后自动启用</small></h2>
+      <div class="grid">
+        <div class="stat"><div class="n" id="hs-total">-</div><div class="l">纳管源</div></div>
+        <div class="stat"><div class="n" id="hs-ok">-</div><div class="l">当前正常</div></div>
+        <div class="stat"><div class="n" id="hs-bad">-</div><div class="l">探测失败</div></div>
+        <div class="stat"><div class="n" id="hs-auto">-</div><div class="l">自动停用</div></div>
+        <div class="stat"><div class="n" id="hs-rate">-</div><div class="l">平均可用率</div></div>
+        <div class="stat"><div class="n" id="hs-ms">-</div><div class="l">平均响应</div></div>
+      </div>
+      <div class="statrow" style="margin-top:14px">
+        <span class="pill" id="hsPill"><span class="dot"></span><span id="hsPillText">检测状态 —</span></span>
+        <span class="muted" id="hsInfo">—</span>
+        <button class="ghost" id="hsProbeBtn" onclick="probeAllSrc()">立即检测全部</button>
+        <button class="ghost" onclick="clearAutoOff()">恢复全部自动停用</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>检测策略 <small>保存后立即生效，无需重启</small></h2>
+      <div class="field">
+        <div><div class="t">源检测总开关</div><div class="d">关闭后不再定时探测，已自动停用的源保持停用状态，也不自动恢复</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="hsOn" onchange="hsUI()"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">检测间隔</div><div class="d">每隔多久探测一轮全部源（含已自动停用的源）。间隔越短恢复越快，但会给源站增加请求</div></div>
+        <div class="ctl"><input class="sel num" id="hsMin" type="number" min="1" max="1440" step="1" value="10" style="width:96px"><span class="muted">分钟</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">失败阈值 · 自动停用</div><div class="d">同一个源<b>连续</b>探测失败达到这个次数就自动停用：不下发机顶盒、不参与聚合搜索。探测成功一次即清零重计</div></div>
+        <div class="ctl"><input class="sel num" id="hsFail" type="number" min="1" max="20" value="3" style="width:96px"><span class="muted">次</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">恢复次数 · 自动启用</div><div class="d">已停用的源在后续探测中<b>连续</b>正常达到这个次数，就自动重新启用，机顶盒下次刷新配置即可看到它回来</div></div>
+        <div class="ctl"><input class="sel num" id="hsOk" type="number" min="1" max="10" value="2" style="width:96px"><span class="muted">次</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">单源超时</div><div class="d">探测一个源最多等多久，超时即判失败。源站较慢时可调大到 15~20 秒</div></div>
+        <div class="ctl"><input class="sel num" id="hsTo" type="number" min="3" max="60" value="10" style="width:96px"><span class="muted">秒</span></div>
+      </div>
+      <div class="rowbtns" style="margin-top:14px">
+        <button onclick="saveSrcStat()">保存并生效</button>
+        <button class="ghost" onclick="loadSrcStat()">还原</button>
+        <span class="muted" id="hsHint">探测方式：请求该源的 ac=class 分类接口，能返回分类或列表即视为存活</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>按响应时间自动排序 <small>延时小的源排最前 · 每轮检测后自动调整</small></h2>
+      <div class="field">
+        <div><div class="t">自动排序总开关</div><div class="d">开启后：机顶盒下发顺序与聚合采集源的取源顺序都改成「按响应时间从快到慢」。只在网关内部生效，<b>不会改动你手动拖出来的片源顺序</b></div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="asOn" onchange="asUI()"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">参考数据</div><div class="d"><b>平均延时</b>更稳（推荐）；<b>最近一次</b>反应更快，但一次网络抖动就会让它跳水</div></div>
+        <div class="ctl"><select class="sel" id="asMode" style="width:150px">
+          <option value="avg">平均延时</option><option value="recent">最近一次</option>
+        </select></div>
+      </div>
+      <div class="field">
+        <div><div class="t">最少探测次数</div><div class="d">一个源至少测到这么多次有效响应才参与排序；次数不够的源保持手动顺序，排在已测源之后</div></div>
+        <div class="ctl"><input class="sel num" id="asMin" type="number" min="1" max="20" value="2" style="width:96px"><span class="muted">次</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">生效范围</div><div class="d">「全部」同时影响机顶盒下发顺序和聚合采集源；也可以只让其中一边按响应时间排</div></div>
+        <div class="ctl"><select class="sel" id="asScope" style="width:170px">
+          <option value="all">下发 + 聚合都生效</option>
+          <option value="deliver">只影响下发顺序</option>
+          <option value="agg">只影响聚合采集</option>
+        </select></div>
+      </div>
+      <div class="field">
+        <div><div class="t">最近一次失败的源排最后</div><div class="d">探测刚失败的源不参与「最快」竞争，直接排到末尾；关闭则只按历史延时排</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="asFailLast" checked><i></i></label></div>
+      </div>
+      <div class="rowbtns" style="margin-top:14px">
+        <button onclick="saveAsort()">保存排序设置</button>
+        <button class="ghost" onclick="loadSrcStat()">还原</button>
+        <span class="muted" id="asHint">排序结果可以在「片源列表」页直接看到（行号 = 实际下发顺序）</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>源状态 <small id="hsSrcInfo">—</small></h2>
+      <div style="overflow-x:auto">
+        <table id="hstbl">
+          <thead><tr><th>片源</th><th>状态</th><th>响应</th><th>可用率</th><th>连续失败</th><th>最近检测</th><th>操作</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="muted" style="margin-top:10px">「自动停用」由检测阈值触发，点「恢复」立即启用并清零计数；「手动停用」来自片源列表或本页操作；「LunaTV 停用」需到 LunaTV 里打开。</div>
+    </div>
+
+    <div class="card">
+      <h2>状态变更记录 <small>最近 12 条自动停用 / 恢复</small></h2>
+      <div id="hsLog" class="muted" style="line-height:1.9">暂无记录</div>
+    </div>
+  </section>
+
+  <!-- 采集源 -->
+  <section class="pane" id="pane-agg">
+    <div class="card">
+      <h2>自建聚合采集源 <small>把全部启用源合成一个苹果 CMS 接口，LunaTV / TVBox 当普通源用</small></h2>
+      <div class="urlbox">
+        <code id="aggUrl">http://192.168.3.100:3032/agg</code>
+        <button class="ghost" onclick="copyAgg()">复制</button>
+      </div>
+      <div class="muted" style="margin-top:10px;line-height:1.9">
+        LunaTV 管理后台 → 视频源 → 添加源：地址填上面这个、名称随意（例如「聚合源」），保存即可。搜索会并行打全部启用源并合并去重，点开播放时按 id 自动回到原源取播放地址。<br>
+        机顶盒也能用：打开下面「下发到机顶盒」后，订阅配置里会多出一个「🧩 聚合源」站点，一个站点装下全部片库；分类页右上角「筛选」可选<b>类型（细分类）/ 地区 / 年份 / 排序</b>。
+      </div>
+      <div class="grid" style="margin:14px 0">
+        <div class="stat"><div class="n" id="a-cats">-</div><div class="l">大分类 / 细分类</div></div>
+        <div class="stat"><div class="n" id="a-src">-</div><div class="l">参与源数量</div></div>
+        <div class="stat"><div class="n" id="a-pool">-</div><div class="l">已缓存分类页</div></div>
+        <div class="stat"><div class="n" id="a-age">-</div><div class="l">分类树更新</div></div>
+      </div>
+      <div id="aggTree" class="muted" style="margin:0 0 10px;line-height:1.8"></div>
+      <div class="field">
+        <div><div class="t">启用聚合采集源</div><div class="d">关闭后 /agg 直接返回空，LunaTV 里那个源会搜不到内容（不会报错）</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="aggOn"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">分类浏览源数量</div><div class="d">首页/分类页最多合并几个源（1 ~ 20）。数量越多片库越全、首次进分类越慢；结果会缓存 10 分钟。搜索不受这个限制</div></div>
+        <div class="ctl"><input class="sel" id="aggBrowse" type="number" min="1" max="20" value="8" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">搜索源数量</div><div class="d">0 = 全部启用源都搜（推荐）；N = 主源 + 最多 N 个额外源。搜得越多返回越慢，LunaTV 端超时是 8 秒</div></div>
+        <div class="ctl"><input class="sel" id="aggSearch" type="number" min="0" max="50" value="0" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">下发到机顶盒</div><div class="d">在订阅配置最前面加一个「🧩 聚合源」站点；关闭则只给 LunaTV 用，机顶盒配置不变</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="aggTvbox"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">细分类也放分类栏</div><div class="d">关闭时分类栏只有 7 个大分类，细分类去分类页的「筛选 → 类型」里选；打开后细分类直接铺在分类栏（条目会比较多，适合没有筛选按钮的 App）</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="aggTvSubs"><i></i></label></div>
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveAgg()">保存并生效</button>
+        <button class="ghost" onclick="loadAgg()">还原</button>
+        <button class="ghost" onclick="rebuildAgg()">重建分类</button>
+        <span class="muted" id="aggInfo">—</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>推荐与拉取数量 <small>首页推荐用哪个分类、每次拉多少条，都在这里调</small></h2>
+      <div class="field">
+        <div><div class="t">推荐分类</div><div class="d">App 首页/推荐页不带分类请求时返回哪个大分类的内容；默认取分类栏第一个</div></div>
+        <div class="ctl"><select class="sel" id="aggHome" style="min-width:150px"></select></div>
+      </div>
+      <div class="field">
+        <div><div class="t">每页条数</div><div class="d">分类列表一页返回多少条（10 ~ 60）。调大后首页/分类页一次加载更多；过大翻页会变慢</div></div>
+        <div class="ctl"><input class="sel" id="aggPage" type="number" min="10" max="60" value="20" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">大分类 · 每源页数</div><div class="d">大分类（电影/电视剧…）每个源抓前几页（1 ~ 5）。调大后合并条目更多，冷启动更慢</div></div>
+        <div class="ctl"><input class="sel" id="aggTopPg" type="number" min="1" max="5" value="1" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">细分类 · 每源页数</div><div class="d">细分类（动作片/国产剧…）每个源抓前几页（1 ~ 5）</div></div>
+        <div class="ctl"><input class="sel" id="aggSubPg" type="number" min="1" max="5" value="1" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">细分类 · 源数量</div><div class="d">每个细分类最多合并几个源（1 ~ 20）。数量越多越全、越慢</div></div>
+        <div class="ctl"><input class="sel" id="aggSubSrc" type="number" min="1" max="20" value="12" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">空白源自动跳过补位</div><div class="d">上面设的「源数量」按<b>真正采到数据的源</b>算：某个源在这个分类下没有内容（空结果/超时），就跳过它、用后面的源补上，直到凑够数量。关闭 = 严格只取排在前面的 N 个源，空就空着</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="aggFill" checked><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">补位最多尝试几个源</div><div class="d">为了凑够有效源，最多往后看多少个源（1 ~ 40）。太小可能补不满，太大会拖慢冷启动</div></div>
+        <div class="ctl"><input class="sel" id="aggFillMax" type="number" min="1" max="40" value="20" style="width:110px"></div>
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveAgg()">保存并生效</button>
+        <button class="ghost" onclick="loadAgg()">还原</button>
+        <span class="muted" id="aggCntInfo">—</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>搜索连通性测试 <small>看每个源对同一个关键词的命中，判断聚合结果是否够全</small></h2>
+      <div class="addrow">
+        <input class="sel" id="aggQ" placeholder="输入片名，例如 庆余年" style="flex:1;min-width:180px">
+        <button onclick="aggTest()">开始测试</button>
+        <span class="muted" id="aggTestInfo"></span>
+      </div>
+      <div style="margin-top:12px" id="aggTestList" class="muted">尚未测试</div>
+    </div>
+    <div class="card">
+      <h2>接口说明</h2>
+      <div class="muted" style="line-height:1.9">
+        · 搜索：<code id="aggApiSearch">/agg?ac=videolist&amp;wd=关键词</code><br>
+        · 详情：<code>/agg?ac=videolist&amp;ids=&lt;源key&gt;~&lt;上游id&gt;</code><br>
+        · 分类：<code>/agg?ac=list</code> 取分类表（大分类 <code>type_pid=0</code>，细分类的 <code>type_pid</code> 指向父类），<code>/agg?ac=videolist&amp;t=&lt;type_id&gt;&amp;pg=1</code> 取列表<br>
+        · 筛选：<code>&amp;area=大陆&amp;year=2025&amp;lang=国语&amp;by=time|hits|score</code>，细分类可直接 <code>&amp;class=&lt;细分类 type_id&gt;</code>；上游不认这些参数时由网关按 vod_area/vod_year/vod_lang 本地过滤<br>
+        · 屏蔽词照旧生效：搜索词命中黑名单直接返空，列表里的分类/标题也会过滤；封面统一走封面缓存与 TMDB 补图。
+      </div>
+    </div>
+  </section>
+
+  <!-- 分类管理 -->
+  <!-- 采集调度（独立页） -->
+  <section class="pane" id="pane-sched">
+    <div class="card" id="acqCard">
+      <h2>采集调度 <small>到点抓一轮就停 · 手动立即采集 · 按需采集开关</small></h2>
+      <div class="muted" style="margin:0 0 12px;line-height:1.9">
+        不做常驻循环抓取：打开「自动采集」后，到点（按间隔或每天固定时刻）跑一轮<b>有预算的预采集</b>，抓完立刻停止等下一次；
+        平时客户端浏览只在「客户端触发采集」打开时才回源，关掉就只读缓存。<br>
+        推荐用法：热门分类（大分类 + 前 N 个细分类）用自动采集提前热好，冷门分类交给客户端触发。
+      </div>
+      <div class="grid" style="margin:0 0 14px">
+        <div class="stat"><div class="n" id="ac-cats">-</div><div class="l">本轮已采分类</div></div>
+        <div class="stat"><div class="n" id="ac-items">-</div><div class="l">本轮采集条数</div></div>
+        <div class="stat"><div class="n" id="ac-pool">-</div><div class="l">已缓存分类页</div></div>
+        <div class="stat"><div class="n" id="ac-next">-</div><div class="l">下次采集</div></div>
+      </div>
+      <div class="muted" id="acState" style="margin:-4px 0 12px">—</div>
+      <div class="field">
+        <div><div class="t">自动采集</div><div class="d">到点跑一轮预采集，采完就退出（不常驻循环），不会在后台一直占带宽</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="acOn" checked><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">采集间隔</div><div class="d">每隔多少分钟跑一轮（5 分钟 ~ 24 小时）。下面填了「每天固定时刻」时此项不生效</div></div>
+        <div class="ctl"><input class="sel" id="acMin" type="number" min="5" max="1440" value="60" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">每天固定时刻</div><div class="d">例如 <code>03:30</code>，每天这个点跑一轮（适合凌晨无人使用时预热）；留空 = 按上面的间隔</div></div>
+        <div class="ctl"><input class="sel" id="acAt" placeholder="留空 = 按间隔" maxlength="5" style="width:130px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">预采集范围</div><div class="d">仅大分类 = 入口页；大分类 + 热门细分类 = 入口 + 源最多的前 N 个细分类（推荐）；全部细分类 = 整棵树，最全也最久</div></div>
+        <div class="ctl">
+          <select class="sel" id="acScope" style="min-width:180px">
+            <option value="top">仅大分类</option>
+            <option value="hot">大分类 + 热门细分类</option>
+            <option value="all">全部细分类</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <div><div class="t">热门细分类数量</div><div class="d">范围选「热门细分类」时预采前几个（1 ~ 80），按该分类挂的源数量从多到少取</div></div>
+        <div class="ctl"><input class="sel" id="acHot" type="number" min="1" max="80" value="12" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">每轮最多分类数</div><div class="d">一轮最多采多少个分类（1 ~ 400），超出的留到下一轮</div></div>
+        <div class="ctl"><input class="sel" id="acMax" type="number" min="1" max="400" value="40" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">每轮时间上限</div><div class="d">一轮最多跑多少秒（60 ~ 3600），到点不论采完没采完都停，剩下的等下一轮</div></div>
+        <div class="ctl"><input class="sel" id="acBudget" type="number" min="60" max="3600" value="300" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">客户端触发采集</div><div class="d">开 = 分类页缓存过期后有人访问就回源重抓（实时但费流量）；关 = 只读已有缓存（过期也用旧的），完全不因浏览产生流量，新分类靠自动/手动采集来填</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="acLazy" checked><i></i></label></div>
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveAcq()">保存并生效</button>
+        <button onclick="startAcq()">立即采集一次</button>
+        <button class="ghost" onclick="stopAcq()">停止</button>
+        <button class="ghost" onclick="clearAcq()">清零采集记录</button>
+        <button class="ghost" onclick="loadAcq()">刷新</button>
+      </div>
+      <div id="acLog" class="muted" style="margin-top:12px;line-height:1.9">—</div>
+      <div class="muted" style="margin-top:8px">「清零采集记录」只清本轮的进度、上次结果与下方日志，不动采集计划（下次采集时间）和已缓存的分类页；要清缓存内容去「采集源」页重建分类树。</div>
+    </div>
+  </section>
+
+  <section class="pane" id="pane-aggcats">
+    <div class="card">
+      <h2>聚合源分类管理 <small>勾选显隐 · 拖动排序，保存后机顶盒分类栏与筛选条立即按此生效</small></h2>
+      <div class="muted" style="margin:0 0 12px;line-height:1.9">
+        勾选 = 显示在分类栏；去掉勾选 = 隐藏（机顶盒和 LunaTV 的分类表都不再返回它）。关掉大分类会连同下面的细分类一起隐藏。<br>
+        拖动 ⠿⠿ 可调整顺序，细分类可以跨大分类移动；顺序同时影响分类栏和筛选条里「类型」的排列。
+      </div>
+      <div id="catlist" class="srcs"></div>
+      <div class="rowbtns">
+        <button onclick="saveAggCats()">保存并生效</button>
+        <button class="ghost" onclick="loadAggCats()">还原</button>
+        <button class="ghost" onclick="allCats(true)">全部显示</button>
+        <span class="muted" id="catInfo">—</span>
       </div>
     </div>
   </section>
@@ -386,6 +785,7 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
       <div class="rowbtns">
         <button onclick="saveUpdate()">保存设置</button>
         <button class="ghost" onclick="tmdbTest()">测试连通性</button>
+        <button class="ghost" onclick="clearCache('tmdb')">清空 TMDB 缓存</button>
         <span class="muted" id="tmdbInfo"></span>
       </div>
     </div>
@@ -444,6 +844,58 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
     </div>
   </section>
 
+  <!-- 缓存管理（独立页） -->
+  <section class="pane" id="pane-cache">
+    <div class="card" id="cacheCard">
+      <h2>本地缓存 <small>哪一项想重来就单独清，清完下次访问自动重建</small></h2>
+      <div class="muted" style="margin:0 0 10px;line-height:1.9">
+        这里只清「缓存」：屏蔽词、片源开关与排序、统计、设备、流量、采集计划都不会动，也不会删掉任何分类设置。<br>
+        清缓存的作用是让网关重新去源站 / TMDB 取一次最新数据 —— 比如源站改过分类或换了封面、TMDB 查错/漏查时用。
+      </div>
+      <div class="field">
+        <div><div class="t">缓存总容量上限</div><div class="d">所有可重建缓存加起来超过这个值，每天巡检时按「最久没写入」整项清理，降到 90% 为止（64 ~ 8192 MB）</div></div>
+        <div class="ctl"><input type="number" class="num" id="cacheMaxMB" min="64" max="8192" step="16"><span class="muted">MB</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">封面缓存上限</div><div class="d">封面图最多占多少空间，超了就从最旧的开始删（32 ~ 4096 MB）</div></div>
+        <div class="ctl"><input type="number" class="num" id="imgMaxMB" min="32" max="4096" step="16"><span class="muted">MB</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">封面保留天数</div><div class="d">超过这个天数的封面图直接删掉，下次浏览再重新下载，避免老旧图长期占盘（1 ~ 365 天）</div></div>
+        <div class="ctl"><input type="number" class="num" id="imgKeepDays" min="1" max="365" step="1"><span class="muted">天</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">TMDB 结果保留天数</div><div class="d">片名 → 海报的查询结果留多久，过期后重新查 TMDB；TMDB 查不到的记录固定 12 小时重试（1 ~ 365 天）</div></div>
+        <div class="ctl"><input type="number" class="num" id="tmdbKeepDays" min="1" max="365" step="1"><span class="muted">天</span></div>
+      </div>
+      <div class="field">
+        <div><div class="t">每天自动清理</div><div class="d">开启后每天按上面的天数与容量自动清一次过期 / 超量缓存；关闭后只在手动点「立即清理过期」时清理</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="cacheAutoClean"><i></i></label></div>
+      </div>
+      <div class="rowbtns" style="margin-bottom:14px">
+        <button onclick="saveCacheCfg()">保存缓存设置</button>
+        <button class="ghost" onclick="runHousekeep()">立即清理过期</button>
+        <span class="muted" id="hkInfo">—</span>
+      </div>
+      <table class="devtbl cachetbl">
+        <thead><tr>
+          <th style="width:172px">缓存项</th>
+          <th>说明</th>
+          <th style="text-align:right;width:70px">条目</th>
+          <th style="text-align:right;width:86px">占用</th>
+          <th style="width:104px">最后写入</th>
+          <th style="width:70px"></th>
+        </tr></thead>
+        <tbody id="cacheBody"><tr><td colspan="6" class="muted">加载中…</td></tr></tbody>
+      </table>
+      <div class="rowbtns">
+        <button class="ghost" onclick="loadCache()">刷新</button>
+        <button class="ghost" onclick="clearCache('all')">清理全部缓存</button>
+        <span class="muted" id="cacheInfo">—</span>
+      </div>
+    </div>
+  </section>
+
   <!-- LOGO 设置 -->
   <section class="pane" id="pane-logo">
     <div class="card">
@@ -471,11 +923,17 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 
 <script>
 const $=id=>document.getElementById(id);
-let CFG={categories:[],titles:[]}, SRC=[], LOGO_TS=0;
+let CFG={categories:[],titles:[]}, SRC=[], LOGO_TS=0, ADULT=false;
+let ASORT={on:false,mode:'avg',min:2,scope:'all',failLast:true};
 const TITLES={overview:['概览','运行状态与机顶盒订阅地址'],words:['屏蔽词','分类与标题双层过滤'],
   sources:['片源管理','加载模式 / 备源切换 / 搜索范围'],
-  srclist:['片源列表','启用状态与分类栏顺序'],search:['搜索统计','机顶盒搜索关键词按次数排行'],
+  srclist:['片源列表','启用状态与分类栏顺序'],
+  srcstat:['源检测','存活检测 · 阈值自动停用 · 恢复自动启用'],search:['搜索统计','机顶盒搜索关键词按次数排行'],
+  agg:['采集源','自建聚合采集源 · 一个接口装下全部片库'],
+  sched:['采集调度','到点抓一轮就停 · 手动立即采集 · 按需采集开关'],
+  aggcats:['分类管理','聚合源分类显隐与排序 · 机顶盒分类栏按此生效'],
   update:['更新设置','源同步与配置备份'],
+  cache:['缓存管理','容量上限 · 保留天数 · 手动清理'],
   logo:['LOGO 设置','TVBox 首页展示图']};
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');
@@ -488,9 +946,27 @@ $('nav').addEventListener('click',e=>{
   $('pageTitle').textContent=TITLES[b.dataset.p][0];
   $('pageSub').textContent=TITLES[b.dataset.p][1];
   if(b.dataset.p==='sources'||b.dataset.p==='srclist') loadSrc();
+  if(b.dataset.p==='overview') loadStatus();
+  if(b.dataset.p==='srcstat') loadSrcStat();
   if(b.dataset.p==='search') loadSearchStats();
+  if(b.dataset.p==='agg') loadAgg();
+  if(b.dataset.p==='aggcats') loadAggCats();
+  if(b.dataset.p==='sched') loadAcq();
+  if(b.dataset.p==='cache') loadCache();
+  if(b.dataset.p==='update') loadUpdate();
   if(b.dataset.p==='logo') loadLogo();
 });
+
+// 支持 ?p=agg 之类直接打开某一页（方便收藏/分享）
+(function(){
+  const want=new URLSearchParams(location.search).get('p');
+  if(!want) return;
+  const b=document.querySelector('#nav button[data-p="'+want.replace(/[^\w-]/g,'')+'"]');
+  if(b) setTimeout(()=>{b.click();
+    const h=location.hash.replace('#','').replace(/[^\w-]/g,'');
+    if(h){const el=document.getElementById(h); if(el) setTimeout(()=>el.scrollIntoView({block:'start'}),150);}
+  },0);
+})();
 
 /* ---------- 通用 ---------- */
 async function api(path,opt){const r=await fetch(path,opt);return r.json();}
@@ -515,6 +991,8 @@ async function loadStatus(){
       ' / 标题 '+(st.monthTitle??0)+' / TMDB 命中 '+(st.monthHit??0)+' / 未收录 '+(st.monthMiss??0);
   }
   $('s-img').textContent=(st.imgMB??0);
+  ADULT=!!st.adultMode; applyAdultMode();
+  if($('version')) $('version').textContent='v2.6';
   $('pillText').textContent='运行中 · '+(st.sourcesEnabled??st.sources)+'/'+st.sources+' 源启用';
   const off=[];
   if(st.filterOn===false) off.push('屏蔽已关闭');
@@ -523,16 +1001,100 @@ async function loadStatus(){
   if(st.tmdbOn===false) off.push('TMDB 已关闭');
   $('pageSub').textContent='运行中 · 在线 '+(st.devices?st.devices.online:0)+' 台 · 已纳管 '+st.sources+' 个片源 · 词库 '+(st.cats+st.titles)+' 条'+(off.length?' · '+off.join(' / '):'');
   renderClients(st.devices||{});
+  renderTraffic(st.traffic||{});
+  AUTO.last=Date.now()/1000; updateAutoInfo();
 }
 async function resetStats(){
-  if(!confirm('确定清零统计？将同时清零「分类拦截 / 标题拦截 / TMDB 命中 / TMDB 未收录」的累计与本月数据，清零后从 0 重新记录。')) return;
+  if(!confirm('确定清零统计？将清零「分类拦截 / 标题拦截 / TMDB 命中 / TMDB 未收录」的累计与本月数据（流量不受影响，要清流量请用流量卡里的「清零流量」）。')) return;
   const j=await api('/api/stats/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   if(j.ok){toast('统计已清零');loadStatus();}else toast('清零失败');
+}
+async function resetTraffic(){
+  if(!confirm('确定清零本端口的流量统计？今日 / 本月 / 累计与各设备流量都会归零，拦截次数与设备在线状态不受影响。')) return;
+  const j=await api('/api/traffic/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j&&j.ok){toast('流量统计已清零');loadStatus();}else toast('清零失败');
 }
 async function clearImgs(){
   if(!confirm('清空本地封面缓存？清完下次访问会重新从源站下载（只影响加载速度，不影响内容）。')) return;
   const j=await api('/api/img/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   if(j.ok){toast('已清理 '+j.files+' 张 / '+j.mb+' MB');loadStatus();}else toast('清理失败');
+}
+/* ---------- 本地缓存管理 ---------- */
+function cacheEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function cacheWhen(ts){
+  if(!ts) return '—';
+  const ago=Date.now()/1000-ts;
+  if(ago<60) return Math.max(0,Math.round(ago))+' 秒前';
+  if(ago<3600) return Math.round(ago/60)+' 分钟前';
+  if(ago<86400) return Math.round(ago/3600)+' 小时前';
+  return new Date(ts*1000).toLocaleString('zh-CN',{hour12:false});
+}
+async function loadCache(){
+  const el=$('cacheBody'); if(!el) return;
+  const j=await api('/api/cache');
+  if(!j||!j.ok){ el.innerHTML='<tr><td colspan="6" class="muted">读取失败</td></tr>'; return; }
+  const items=j.items||[]; let tb=0;
+  el.innerHTML=items.map(x=>{
+    tb+=x.bytes||0;
+    const dead=!(x.entries||x.bytes);
+    return '<tr class="'+(dead?'dead':'')+'">'
+      +'<td class="nm">'+cacheEsc(x.name)+'</td>'
+      +'<td class="desc">'+cacheEsc(x.desc)+'</td>'
+      +'<td class="num">'+(x.entries||0)+'</td>'
+      +'<td class="num">'+fmtB(x.bytes||0)+'</td>'
+      +'<td class="when">'+cacheWhen(x.mtime)+'</td>'
+      +'<td class="act"><button class="ghost" onclick="clearCache(\''+x.key+'\')">清理</button></td>'
+      +'</tr>';
+  }).join('');
+  if($('cacheInfo')) $('cacheInfo').textContent='共 '+items.length+' 项 · 合计 '+fmtB(tb)+' / 上限 '+fmtB((j.maxMB||512)*1048576)+' · 目录 '+j.dir;
+  if($('cacheMaxMB')) $('cacheMaxMB').value=j.maxMB||512;
+  if($('imgMaxMB')) $('imgMaxMB').value=j.imgMaxMB||256;
+  if($('imgKeepDays')) $('imgKeepDays').value=j.imgKeepDays||30;
+  if($('tmdbKeepDays')) $('tmdbKeepDays').value=j.tmdbKeepDays||60;
+  if($('cacheAutoClean')) $('cacheAutoClean').checked=j.autoClean!==false;
+  if($('hkInfo')){
+    const hk=j.hk||{};
+    $('hkInfo').textContent = hk.ts
+      ? ('上次巡检 '+cacheWhen(hk.ts)+'：'+(hk.msg||'—')+(hk.freed?(' · 释放 '+fmtB(hk.freed)):''))
+      : '尚未巡检（开着每天自动清一次，也可点「立即清理过期」）';
+  }
+}
+async function saveCacheCfg(){
+  const body={cacheMaxMB:Math.max(64,Math.min(8192,+$('cacheMaxMB').value||512)),
+    imageCacheMaxMB:Math.max(32,Math.min(4096,+$('imgMaxMB').value||256)),
+    imageCacheKeepDays:Math.max(1,Math.min(365,+$('imgKeepDays').value||30)),
+    tmdbCacheKeepDays:Math.max(1,Math.min(365,+$('tmdbKeepDays').value||60)),
+    cacheAutoCleanEnabled:!!$('cacheAutoClean').checked};
+  const j=await api('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j&&j.ok){
+    toast('缓存设置已保存：总上限 '+body.cacheMaxMB+'MB · 封面 '+body.imageCacheMaxMB+'MB / '+body.imageCacheKeepDays+' 天');
+    loadCache();
+  }else toast('保存失败：'+((j&&j.error)||''));
+}
+async function runHousekeep(){
+  toast('正在清理过期缓存…');
+  const j=await api('/api/cache/clean',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j&&j.ok) toast('清理完成：'+(j.msg||'无需清理')); else toast('清理失败');
+  loadCache(); loadUpdate(); loadStatus();
+}
+async function clearCache(k){
+  const names={tmdb:'TMDB 海报结果',img:'封面图片缓存',cfg:'订阅配置缓存',agg:'聚合分类树 / 分类页',
+    cat:'分类探测与分类映射',sh:'源检测历史',fo:'主备源切换记录',acq:'预采集记录'};
+  const label=k==='all'?'全部缓存':(names[k]||k);
+  let tip='';
+  if(k==='all') tip='确定清理全部缓存？封面图片与订阅配置会重新下载/构建，聚合分类树会重建（期间新分类可能短暂为空）。屏蔽词、片源开关与排序、统计、采集计划都不受影响。';
+  else if(k==='img') tip='确定清理封面图片缓存？清完下次浏览会重新从源站下载，首屏会慢一点，内容不受影响。';
+  else if(k==='cfg') tip='确定清理订阅配置缓存？下次机顶盒请求会重新从 LunaTV 构建（约几秒）。';
+  else if(k==='agg') tip='确定清理聚合分类树与分类页缓存？会立即后台重建，重建期间新分类可能暂时为空。';
+  else if(k==='cat') tip='确定清理分类探测与分类映射？清完下次访问会重新探测各源分类，翻页会慢一点点。';
+  else if(k==='sh') tip='确定清理源检测历史？成功率和响应时间会重新累计；自动停用的源不会因此恢复启用。';
+  else if(k==='fo') tip='确定清理主备源切换记录？会回到配置里的主源并清零失败计数。';
+  else if(k==='acq') tip='确定清理预采集记录？上一轮结果与日志清空，采集计划与已缓存分类页不受影响。';
+  else tip='确定清理「'+label+'」？清完下次访问会自动重新获取。';
+  if(!confirm(tip)) return;
+  const j=await api('/api/cache/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:k})});
+  if(j&&j.ok) toast('已清理：'+(j.msg||label)); else toast('清理失败：'+((j&&j.msg)||'未知错误'));
+  loadCache(); loadUpdate(); loadStatus();
 }
 async function resetDevices(){
   if(!confirm('确定清零设备统计？将清空实时在线、今日/本月接入与近 7 日趋势，清零后设备下次访问重新累计。')) return;
@@ -563,6 +1125,188 @@ async function resetSearchStats(){
   const j=await api('/api/search_stats/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
   if(j.ok){toast('搜索统计已清零');loadSearchStats();}else toast('清零失败');
 }
+
+/* ---------- 源检测 ---------- */
+let HS={data:null,timer:null};
+const HS_STATE={ok:['ok','正常'],bad:['bad','探测失败'],auto_off:['off','自动停用'],
+  manual_off:['off','手动停用'],luna_off:['mute','LunaTV 停用'],unknown:['wait','待检测']};
+function hsAgo(ts){
+  if(!ts) return '—';
+  const s=Math.max(0,Math.round(Date.now()/1000-ts));
+  if(s<60) return s+' 秒前';
+  if(s<3600) return Math.round(s/60)+' 分钟前';
+  if(s<86400) return Math.round(s/3600)+' 小时前';
+  return Math.round(s/86400)+' 天前';
+}
+function hsTime(ts){
+  if(!ts) return '—';
+  const d=new Date(ts*1000),p=x=>String(x).padStart(2,'0');
+  return (d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function hsDur(s){
+  s=+s||0;
+  if(s<60) return s+' 秒';
+  if(s<3600) return Math.round(s/60)+' 分钟';
+  return (s/3600).toFixed(1)+' 小时';
+}
+function hsEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fillSrcStatForm(c){
+  if(!c) return;
+  $('hsOn').checked=!!c.on;
+  $('hsMin').value=Math.max(1,Math.round((c.sec||600)/60));
+  $('hsFail').value=c.fail||3;
+  $('hsOk').value=c.ok||2;
+  $('hsTo').value=c.to||10;
+  hsUI();
+}
+function fillAsortForm(a){
+  if(!a) return;
+  // 用户正在改这一组设置时别被定时刷新覆盖
+  const act=document.activeElement&&document.activeElement.id;
+  if(act&&['asOn','asMode','asMin','asScope','asFailLast'].includes(act)) return;
+  ASORT=Object.assign({},ASORT,a);
+  if($('asOn')) $('asOn').checked=!!ASORT.on;
+  if($('asMode')) $('asMode').value=ASORT.mode||'avg';
+  if($('asMin')) $('asMin').value=ASORT.min||2;
+  if($('asScope')) $('asScope').value=ASORT.scope||'all';
+  if($('asFailLast')) $('asFailLast').checked=ASORT.failLast!==false;
+  asUI();
+}
+function asUI(){
+  const on=$('asOn')?$('asOn').checked:false;
+  ['asMode','asMin','asScope','asFailLast'].forEach(id=>{const el=$(id);if(el){el.disabled=!on;el.style.opacity=on?'1':'.4';}});
+  if($('asHint')) $('asHint').textContent=on
+    ? '已开启：延时小的源自动排最前，改完点「保存排序设置」立即生效'
+    : '未开启：按片源列表里手动拖出来的顺序下发与采集';
+}
+function hsUI(){
+  const on=$('hsOn').checked;
+  ['hsMin','hsFail','hsOk','hsTo'].forEach(id=>{const el=$(id);if(el){el.disabled=!on;el.style.opacity=on?'1':'.4';}});
+  $('hsHint').textContent=on
+    ? '探测方式：请求该源的 ac=class 分类接口，能返回分类或列表即视为存活'
+    : '检测已关闭：不会定时探测，已自动停用的源保持停用，也不会自动恢复';
+}
+function paintSrcStat(j){
+  HS.data=j;
+  $('hs-total').textContent=j.total??'-';
+  $('hs-ok').textContent=j.alive??'-';
+  $('hs-bad').textContent=j.bad??'-';
+  $('hs-auto').textContent=j.autoOff??'-';
+  $('hs-rate').textContent=(j.rate==null?'—':j.rate+'%');
+  $('hs-ms').textContent=(j.avgMs?j.avgMs+' ms':'—');
+  const c=j.conf||{}, running=!!j.running;
+  if(j.asort) fillAsortForm(j.asort);
+  $('hsPillText').textContent=running?'正在检测…':(c.on?'检测已开启 · 每 '+hsDur(c.sec):'检测已关闭');
+  $('hsPill').className='pill'+(c.on&&!running?'':' bad');
+  const bits=[];
+  if(j.lastTs) bits.push('上次检测 '+hsAgo(j.lastTs));
+  if(c.on) bits.push(running?'检测中':'下次 '+hsDur(j.nextIn||0)+'后');
+  if(j.offline) bits.push('已停用 '+j.offline+' 个');
+  bits.push('失败阈值 '+c.fail+' 次 · 恢复 '+c.ok+' 次');
+  bits.push('自动排序 '+(j.asort&&j.asort.on?'开':'关'));
+  $('hsInfo').textContent=bits.join(' · ');
+  const btn=$('hsProbeBtn');
+  if(btn){btn.disabled=running;btn.textContent=running?'检测中…':'立即检测全部';}
+  $('hsSrcInfo').textContent='共 '+j.total+' 个源 · 正常 '+(j.alive||0)+' · 自动停用 '+(j.autoOff||0)+' · 排查顺序按异常优先';
+  const tb=document.querySelector('#hstbl tbody');
+  const items=j.items||[];
+  if(!items.length){tb.innerHTML='<tr><td colspan="7" class="muted">LunaTV 里还没有片源，先到「片源管理」同步。</td></tr>';}
+  else tb.innerHTML=items.map(x=>{
+    const st=HS_STATE[x.state]||HS_STATE.unknown;
+    const bars=(x.hist||[]).map(v=>'<i class="'+(v?'ok':'bad')+'"></i>').join('')||'<i></i>';
+    const rate=x.rate==null?'<span class="muted">—</span>'
+      :'<span class="deep"><i style="width:'+Math.max(2,x.rate)+'%"></i></span> <span class="muted">'+x.rate+'%</span>';
+    const ms=x.avgMs?x.avgMs+' ms':(x.ms?x.ms+' ms':'—');
+    let ops='<button class="op" onclick="probeOneSrc(\''+hsEsc(x.key)+'\')">检测</button>';
+    if(x.state==='luna_off') ops+='<button class="op" disabled>LunaTV 停用</button>';
+    else if(x.state==='manual_off'||x.state==='auto_off')
+      ops+='<button class="op" onclick="toggleSrcStat(\''+hsEsc(x.key)+'\',1)">启用</button>';
+    else ops+='<button class="op warn" onclick="toggleSrcStat(\''+hsEsc(x.key)+'\',0)">停用</button>';
+    const tip=x.err?(' title="'+hsEsc(x.err)+'"'):'';
+    return '<tr><td><div>'+hsEsc(x.name)+'</div><div class="srckey">'+hsEsc(x.key)+'</div></td>'
+      +'<td><span class="st '+st[0]+'">'+st[1]+'</span><span class="hbars">'+bars+'</span></td>'
+      +'<td>'+ms+'</td><td>'+rate+'</td>'
+      +'<td'+(x.fail?' class="bad"':'')+tip+'>'+x.fail+' 次</td>'
+      +'<td class="muted">'+hsTime(x.lastTs)+'<div class="srckey">'+hsAgo(x.lastTs)+'</div></td>'
+      +'<td>'+ops+'</td></tr>';
+  }).join('');
+  const log=j.log||[];
+  $('hsLog').innerHTML=log.length?log.map(x=>{
+    const cls=x.kind==='on'?'ok':'off';
+    return '<div style="padding:3px 0"><span class="st '+cls+'" style="margin-right:8px">'+(x.kind==='on'?'恢复':'停用')+'</span>'
+      +'<span class="muted">'+hsTime(x.ts)+'</span> · '+hsEsc(x.key)+' · '+hsEsc(x.text)+'</div>';
+  }).join(''):'暂无记录 · 有源被自动停用或恢复时这里会出现';
+}
+async function loadSrcStat(fill){
+  let j;
+  try{j=await api('/api/srcstat');}catch(e){return;}
+  if(!j||!j.ok) return;
+  if(fill!==false) fillSrcStatForm(j.conf);
+  paintSrcStat(j);
+  clearTimeout(HS.timer);
+  if(j.running) HS.timer=setTimeout(()=>loadSrcStat(false),1600);
+}
+async function saveSrcStat(){
+  const sec=Math.round(Math.max(1,Math.min(1440,parseFloat($('hsMin').value)||10))*60);
+  const body={action:'save',on:$('hsOn').checked,sec:sec,
+    fail:parseInt($('hsFail').value||'3',10),ok:parseInt($('hsOk').value||'2',10),
+    timeout:parseInt($('hsTo').value||'10',10)};
+  const j=await api('/api/srcstat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j&&j.ok){toast('检测策略已保存 · '+(body.on?'每 '+hsDur(sec)+'检测一次':'已关闭'));loadSrcStat(true);}
+  else toast('保存失败');
+}
+async function saveAsort(){
+  const body={action:'save',
+    asortOn:$('asOn').checked,
+    asortMode:$('asMode').value||'avg',
+    asortMin:Math.max(1,Math.min(20,parseInt($('asMin').value||'2',10)||2)),
+    asortScope:$('asScope').value||'all',
+    asortFailLast:$('asFailLast').checked};
+  const j=await api('/api/srcstat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j&&j.ok){
+    ASORT=Object.assign({},j.asort||{});
+    toast(body.asortOn?'自动排序已开启 · 延时小的源排最前':'已改回手动排序');
+    loadSrcStat(false); loadSrc();
+  }else toast('排序设置保存失败');
+}
+async function setSortMode(v){
+  const on=v==='auto';
+  const j=await api('/api/srcstat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'save',asortOn:on})});
+  if(j&&j.ok){
+    ASORT.on=on;
+    toast(on?'已开启按响应时间自动排序（延时小的排最前）':'已改回手动排序');
+    if(on&&!Object.keys(HS.data||{}).length) toast('提示：还没有检测数据，先在「源检测」页点一次「立即检测全部」');
+    loadSrc();
+  }else toast('切换排序方式失败');
+}
+async function probeAllSrc(){
+  const j=await api('/api/srcstat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'probe'})});
+  if(j&&j.ok){toast(j.skipped?'正在检测中，请稍候':'已开始检测全部源');loadSrcStat(false);}
+  else toast('检测启动失败');
+}
+async function probeOneSrc(k){
+  const row=HS.data&&(HS.data.items||[]).find(x=>x.key===k);
+  toast('正在检测 '+(row?row.name:k)+'…');
+  const j=await api('/api/srcstat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'probe_one',key:k})});
+  if(j&&j.ok){
+    toast((j.alive?'正常 · ':'异常 · ')+(j.ms||0)+' ms · '+j.detail+(j.dropped?' · 已自动停用':'')+(j.recovered?' · 已自动恢复':''));
+    loadSrcStat(false);
+  }else toast('检测失败');
+}
+async function toggleSrcStat(k,on){
+  const row=HS.data&&(HS.data.items||[]).find(x=>x.key===k);
+  if(!on&&!confirm('确定停用「'+(row?row.name:k)+'」？停用后不下发机顶盒、不参与聚合搜索，随时可以再启用。')) return;
+  const j=await api('/api/srcstat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:on?'on':'off',key:k})});
+  if(j&&j.ok){toast(on?'已启用':'已停用');loadSrcStat(false);}else toast((j&&j.error)||'操作失败');
+}
+async function clearAutoOff(){
+  const n=(HS.data&&HS.data.autoOff)||0;
+  if(!n){toast('当前没有自动停用的源');return;}
+  if(!confirm('把 '+n+' 个自动停用的源全部恢复启用？如果源仍然不可用，下一轮检测会再次停用。')) return;
+  const j=await api('/api/srcstat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'clear'})});
+  if(j&&j.ok){toast('已恢复全部自动停用');loadSrcStat(false);}else toast('操作失败');
+}
 function agoText(s){
   s=+s||0;
   if(s<60) return Math.round(s)+' 秒前';
@@ -570,8 +1314,66 @@ function agoText(s){
   if(s<86400) return (s/3600).toFixed(1)+' 小时前';
   return Math.round(s/86400)+' 天前';
 }
+function splitB(n){
+  n=+n||0;
+  if(n<1024) return [String(Math.round(n)),'B'];
+  if(n<1048576) return [(n/1024).toFixed(n<10240?1:0),'KB'];
+  if(n<1073741824) return [(n/1048576).toFixed(n<10485760?1:0),'MB'];
+  return [(n/1073741824).toFixed(2),'GB'];
+}
+function fmtB(n){const a=splitB(n);return a[0]+' '+a[1];}
+function renderTraffic(t){
+  if(!t) return;
+  if($('t-port')) $('t-port').textContent='本端口 '+(t.port||'')+' 独立统计 · 只算机顶盒数据流，与另一端口互不叠加';
+  const a=splitB(t.now||0), b=splitB(t.avg||0);
+  if($('t-now')){ $('t-now').textContent=a[0]; $('t-nowu').textContent=a[1]+'/s'; }
+  if($('t-avg')){ $('t-avg').textContent=b[0]; $('t-avgu').textContent=b[1]+'/s'; }
+  if($('t-day')) $('t-day').textContent=fmtB(t.day||0);
+  if($('t-month')) $('t-month').textContent=fmtB(t.month||0);
+  if($('t-total')) $('t-total').textContent=fmtB(t.total||0);
+  const sp=t.spark||[];
+  if($('t-spark')&&sp.length){
+    const mx=Math.max(1,...sp);
+    $('t-spark').innerHTML=sp.map(v=>{
+      const h=Math.max(2,Math.round(v/mx*24));
+      const cls=v===0?'z':(v>=mx*0.6?'hot':'');
+      return '<i class="'+cls+'" style="height:'+h+'px" title="'+fmtB(v)+'"></i>';
+    }).join('');
+  }
+}
+/* 自动刷新：只在本次打开页面且手动开启时生效，不写本地存储 → 下次打开默认关闭 */
+const AUTO={on:false,sec:15,timer:null,last:0,paneId:'pane-overview'};
+function autoStart(){
+  autoStop();
+  if(!AUTO.on) return;
+  AUTO.timer=setInterval(()=>{
+    if(document.hidden) return;                                  // 后台标签页不发请求
+    const pv=$(AUTO.paneId);
+    if(!pv||!pv.classList.contains('on')) return;                 // 不在概览页不发请求
+    loadStatus();
+  },Math.max(3,AUTO.sec)*1000);
+}
+function autoStop(){ if(AUTO.timer){clearInterval(AUTO.timer);AUTO.timer=null;} }
+function updateAutoInfo(){
+  const el=$('autoInfo'); if(!el) return;
+  const t=AUTO.last?new Date(AUTO.last*1000).toLocaleTimeString('zh-CN',{hour12:false}):'—';
+  el.textContent=AUTO.on?('自动刷新中 · 每 '+AUTO.sec+' 秒 · 上次 '+t)
+                         :('自动刷新已关闭 · 上次刷新 '+t);
+}
+function toggleAuto(){
+  AUTO.on=!!($('autoOn')&&$('autoOn').checked);
+  if(AUTO.on){ loadStatus(); autoStart(); toast('自动刷新已开启 · 每 '+AUTO.sec+' 秒'); }
+  else { autoStop(); toast('自动刷新已关闭'); }
+  updateAutoInfo();
+}
+function setAutoSec(){
+  AUTO.sec=+($('autoSec')&&$('autoSec').value)||15;
+  if(AUTO.on) autoStart();
+  updateAutoInfo();
+}
 function renderClients(dev){
-  const el=$('clients'); if(!el) return;
+  const el=$('devtbl'); if(!el) return;
+  const tb=el.tBodies[0];
   const list=(dev&&dev.devices)||[];
   if($('d-on')) $('d-on').textContent=dev&&dev.online!=null?dev.online:0;
   if($('d-today')) $('d-today').textContent=dev&&dev.today!=null?dev.today:0;
@@ -597,27 +1399,41 @@ function renderClients(dev){
     }
   }
   if(!list.length){
-    el.innerHTML='<div class="muted">今日暂无设备接入。机顶盒打开影视 App 或切换一次分类后就会出现。</div>';
+    tb.innerHTML='<tr><td colspan="10" class="muted">今日暂无设备接入。机顶盒打开影视 App 或切换一次分类后就会出现。</td></tr>';
     return;
   }
+  const agg=list.reduce((a,c)=>({now:a.now+(c.nowB||0),day:a.day+(c.dayB||0),
+    month:a.month+(c.monthB||0),total:a.total+(c.totalB||0)}),{now:0,day:0,month:0,total:0});
   let h='';
   list.forEach(c=>{
     const on=!!c.online;
     const dot='<span class="dot" style="width:7px;height:7px;box-shadow:none;background:'+(on?'var(--green)':'#4a5262')+'"></span>';
-    const tag='<span style="font-size:12px;color:'+(on?'#7ee2a7':'#6f778a')+';min-width:42px">'+(on?'在线':'离线')+'</span>';
-    const path=(c.path||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-    h+='<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(128,128,128,.15);flex-wrap:wrap">'
-      +dot
-      +'<code style="min-width:112px;font-weight:600">'+(c.ip||'')+'</code>'
-      +tag
-      +'<span class="muted" style="flex:1;min-width:88px">'+path+'</span>'
-      +'<span class="muted" style="min-width:70px;text-align:right">今日 '+c.n+' 次</span>'
-      +'<span class="muted" style="min-width:70px;text-align:right">本月 '+(c.month||0)+' 次</span>'
-      +'<span class="muted" style="min-width:70px;text-align:right">累计 '+(c.total||0)+' 次</span>'
-      +'<span class="muted" style="min-width:80px;text-align:right">'+(on?'活跃 ':'空闲 ')+agoText(c.ago)+'</span>'
-      +'</div>';
+    const tag='<span style="font-size:12px;color:'+(on?'#7ee2a7':'#6f778a')+'">'+(on?'在线':'离线')+'</span>';
+    const path=String(c.path||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    const mac=String(c.mac||'').toUpperCase();
+    h+='<tr class="'+(on?'':'off')+'">'
+      +'<td>'+dot+' '+tag+'</td>'
+      +'<td class="ip">'+(c.ip||'')+'</td>'
+      +'<td class="mac" title="'+(mac?'点击复制 MAC':'NAS ARP 表里没有这台设备的 MAC（设备可能已离线）')+'">'+(mac||'—')+'</td>'
+      +'<td class="num">'+(c.nowB?(fmtB(c.nowB)+'/s'):'—')+'</td>'
+      +'<td class="num"><b>'+fmtB(c.dayB||0)+'</b></td>'
+      +'<td class="num">'+fmtB(c.monthB||0)+'</td>'
+      +'<td class="num">'+fmtB(c.totalB||0)+'</td>'
+      +'<td class="num">'+(c.n||0)+' / '+(c.month||0)+' / '+(c.total||0)+'</td>'
+      +'<td class="num">'+(on?'活跃 ':'空闲 ')+agoText(c.ago)+'</td>'
+      +'<td class="path" title="'+path+'">'+(path||'—')+'</td>'
+      +'</tr>';
   });
-  el.innerHTML=h;
+  const macs=[...new Set(list.map(c=>String(c.mac||'').toUpperCase()).filter(Boolean))];
+  h+='<tr><td class="muted">合计</td>'
+    +'<td class="muted" colspan="2">'+list.length+' 台设备 · MAC 去重 '+macs.length+' 台</td>'
+    +'<td class="num muted">'+fmtB(agg.now)+'/s</td>'
+    +'<td class="num muted">'+fmtB(agg.day)+'</td>'
+    +'<td class="num muted">'+fmtB(agg.month)+'</td>'
+    +'<td class="num muted">'+fmtB(agg.total)+'</td>'
+    +'<td class="num muted">'+list.reduce((a,c)=>a+(c.n||0),0)+' 次</td>'
+    +'<td colspan="2"></td></tr>';
+  tb.innerHTML=h;
 }
 
 /* ---------- 屏蔽词 ---------- */
@@ -648,7 +1464,17 @@ async function loadWords(){
   if($('titleOn')) $('titleOn').checked=(c.titleFilterEnabled!==false);
   paintFilterUI(false);
 }
+function applyAdultMode(){
+  const n=$('adultNotice'); if(n) n.style.display=ADULT?'':'none';
+  if(!ADULT) return;
+  ['filterOn','catOn','titleOn'].forEach(id=>{const el=$(id);if(el){el.checked=false;el.disabled=true;}});
+  document.querySelectorAll('#pane-words .field').forEach(f=>f.style.opacity='.45');
+  if($('filterInfo')) $('filterInfo').textContent='全分类实例：屏蔽功能已强制关闭';
+  if($('catHint')){$('catHint').textContent='全分类实例不做屏蔽 · 分类全部下发';$('catHint').style.color='#ffb020';}
+  if($('titleHint')){$('titleHint').textContent='全分类实例不做屏蔽 · 标题全部放行';$('titleHint').style.color='#ffb020';}
+}
 function paintFilterUI(dirty){
+  if(ADULT) applyAdultMode();
   const allOn=$('filterOn').checked, catOn=$('catOn').checked, titleOn=$('titleOn').checked;
   if($('catOn')) $('catOn').disabled=!allOn;
   if($('titleOn')) $('titleOn').disabled=!allOn;
@@ -669,6 +1495,7 @@ function paintFilterUI(dirty){
 }
 function onFilterUI(){ paintFilterUI(true); }
 async function saveFilter(){
+  if(ADULT){toast('全分类实例：屏蔽已强制关闭，词库仅作备份');return;}
   const body={filterEnabled:$('filterOn').checked,
               categoryFilterEnabled:$('catOn').checked,
               titleFilterEnabled:$('titleOn').checked};
@@ -765,21 +1592,31 @@ async function runTest(){
 function renderSrc(){
   const box=$('srclist'); box.innerHTML='';
   if(!SRC.length){box.innerHTML='<div class="muted">暂无片源</div>';return;}
+  const auto=!!ASORT.on&&(ASORT.scope==='all'||ASORT.scope==='deliver');
   let dragEl=null;
   SRC.forEach((s,i)=>{
     const row=document.createElement('div'); row.className='srcrow'+(s.disabled?' off':'');
-    row.draggable=true; row.dataset.i=String(i); row.dataset.key=s.key;
+    row.draggable=!auto; row.dataset.i=String(i); row.dataset.key=s.key;
     const sw=document.createElement('label'); sw.className='switch';
     const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!s.disabled;
-    cb.onchange=()=>{SRC[i].disabled=!cb.checked;renderSrc();};
+    cb.onchange=()=>{
+      // 自动停用的源不在「手动停用」名单里，打开开关等于让源检测页立即恢复并清零计数
+      if(s.autoOff){cb.checked=false;toggleSrcStat(s.key,1);return;}
+      SRC[i].disabled=!cb.checked;renderSrc();
+    };
     const ii=document.createElement('i'); sw.appendChild(cb); sw.appendChild(ii);
     const name=document.createElement('div'); name.className='srcname';
     const n1=document.createElement('div'); n1.textContent=(i+1)+'. '+s.name;
-    const n2=document.createElement('div'); n2.className='srckey'; n2.textContent=s.key+(s.disabled?' · 已关闭':'');
+    const n2=document.createElement('div'); n2.className='srckey';
+    const msTxt=(s.avgMs?' · 平均 '+s.avgMs+' ms':'');
+    n2.textContent=s.key+msTxt+(s.autoOff?' · 自动停用（源检测页可恢复）':(s.disabled?' · 已关闭':''));
     name.appendChild(n1); name.appendChild(n2);
-    const grip=document.createElement('span'); grip.className='grip'; grip.title='拖动调整顺序'; grip.textContent='⠿⠿';
+    const grip=document.createElement('span'); grip.className='grip';
+    if(auto){grip.style.display='none';}
+    else{grip.title='拖动调整顺序';grip.textContent='⠿⠿';}
     row.appendChild(sw); row.appendChild(name); row.appendChild(grip);
     row.addEventListener('dragstart',e=>{
+      if(auto){e.preventDefault();return;}
       dragEl=row; row.classList.add('dragging');
       e.dataTransfer.effectAllowed='move';
       try{e.dataTransfer.setData('text/plain',s.key);}catch(_){}
@@ -821,9 +1658,22 @@ function syncOrderFromDom(){
     toast('顺序已调整 · 点「保存并生效」写入');
   }
 }
+function paintSrcSortHint(){
+  const auto=!!ASORT.on;
+  const measured=SRC.filter(s=>s.avgMs>0).length;
+  if($('slSortHint')) $('slSortHint').textContent=auto
+    ? '已开启 · '+(ASORT.mode==='recent'?'按最近一次':'按平均延时')+' · 已测 '+measured+' 个源'
+    : '关闭 · 按下方拖拽顺序';
+  if($('slTip')) $('slTip').textContent=auto
+    ? '自动排序中：行号就是实际下发顺序，拖动已停用；延迟数据来自「源检测」页的探测'
+    : '关闭开关 = 该源不出现在机顶盒；按住行拖动调整分类栏顺序，保存后生效';
+}
 async function loadSrc(){
   const [j,c]=await Promise.all([api('/api/sources'),api('/api/config')]);
+  if(j.asort) ASORT=Object.assign({},ASORT,j.asort);
   SRC=j.sources||[];renderSrc();
+  if($('slSortMode')) $('slSortMode').value=ASORT.on?'auto':'manual';
+  paintSrcSortHint();
   if(c){CFG.sourceLimit=c.sourceLimit||0; CFG.activeSource=c.activeSource||'';}
   paintFO(j);
   const sel=$('srcActive'); if(!sel) return;
@@ -1073,6 +1923,262 @@ async function resetLogo(){
   else toast('操作失败：'+(j.error||''));
 }
 
+/* ---------- 采集源 ---------- */
+async function loadAgg(){
+  const j=await api('/api/agg'); if(!j||!j.ok) return;
+  $('aggUrl').textContent=j.url;
+  $('aggOn').checked=!!j.enabled;
+  $('aggBrowse').value=j.browseSources;
+  $('aggSearch').value=j.searchSources;
+  $('aggTvbox').checked=!!j.inTvbox;
+  $('aggTvSubs').checked=!!j.tvSubs;
+  $('aggPage').value=j.pageSize||20;
+  $('aggTopPg').value=j.topPages||1;
+  $('aggSubPg').value=j.subPages||1;
+  $('aggSubSrc').value=j.subSources||12;
+  if($('aggFill')) $('aggFill').checked=j.fillOn!==false;
+  if($('aggFillMax')) $('aggFillMax').value=j.fillMax||20;
+  const tops=(j.cats||[]).filter(c=>!c.type_pid).map(c=>c.type_name);
+  $('aggHome').innerHTML='<option value="">默认（分类栏第一个）</option>'+
+    tops.map(n=>'<option value="'+n+'">'+n+'</option>').join('');
+  $('aggHome').value=j.homeCat||'';
+  $('aggCntInfo').textContent='推荐：'+(j.homeCat||tops[0]||'—')+' · 每页 '+(j.pageSize||20)+
+    ' 条 · 大分类 '+(j.topPages||1)+' 页/源 · 细分类 '+(j.subPages||1)+' 页/源 × '+(j.subSources||12)+' 源';
+  $('a-cats').textContent=(j.topCount||0)+' / '+(j.subCount||0);
+  $('a-src').textContent=j.sourceCount||0;
+  $('a-pool').textContent=j.poolCount||0;
+  $('a-age').textContent=j.builtAgo?agoText(j.builtAgo):'未构建';
+  $('aggInfo').textContent=(j.topCount||0)+' 个大分类 / '+(j.subCount||0)+' 个细分类 · '+(j.sourceCount||0)+' 个源参与 · 改动保存后下次请求生效';
+  $('aggApiSearch').textContent=j.url+'?ac=videolist&wd=关键词';
+  renderAggTree(j.cats||[]);
+  loadAcq();
+}
+let ACQ_T=null;
+async function loadAcq(){
+  const j=await api('/api/agg/collect'); if(!j||!j.ok) return;
+  const c=j.conf||{};
+  $('acOn').checked=!!c.on;
+  $('acMin').value=Math.max(5,Math.round((c.sec||3600)/60));
+  $('acAt').value=c.at||'';
+  $('acScope').value=c.scope||'hot';
+  $('acHot').value=c.hot||12;
+  $('acMax').value=c.max||80;
+  $('acBudget').value=c.budget||600;
+  $('acLazy').checked=c.lazy!==false;
+  renderAcq(j);
+  if(j.running && !ACQ_T) ACQ_T=setInterval(async()=>{
+    const k=await api('/api/agg/collect');
+    if(!k||!k.ok) return;
+    renderAcq(k);
+    if(!k.running){clearInterval(ACQ_T);ACQ_T=null;}
+  },3000);
+}
+function acqWhen(ts){
+  if(!ts) return '—';
+  const d=new Date(ts*1000);
+  return (d.getMonth()+1)+'-'+String(d.getDate()).padStart(2,'0')+' '+
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function renderAcq(j){
+  const last=j.last||{};
+  $('ac-cats').textContent=j.running? (j.done+'/'+j.total) : (last.cats!=null? (last.cats+' 个') : '-');
+  $('ac-items').textContent=j.running? Number(j.items||0).toLocaleString('zh-CN')
+    : (last.items!=null? Number(last.items).toLocaleString('zh-CN') : '-');
+  $('ac-pool').textContent=j.poolSize||0;
+  $('ac-next').textContent=j.running? '采集中' : (j.conf&&j.conf.on? (j.nextIn? hsDur(j.nextIn)+'后' : '即将开始') : '已关闭');
+  const bits=[];
+  if(j.running){
+    bits.push('<b style="color:var(--txt)">正在采集</b>「'+(j.cur||'…')+'」');
+    bits.push('进度 '+j.done+'/'+j.total+' · 已采 '+Number(j.items||0).toLocaleString('zh-CN')+' 条 · 空 '+j.failed+' 个 · 用时 '+hsDur(j.elapsed));
+  }else if(last.finishedTs){
+    bits.push('上次采集 '+acqWhen(last.finishedTs)+'（'+(last.trigger==='auto'?'自动':'手动')+'）');
+    bits.push('采了 '+(last.cats||0)+'/'+(last.total||0)+' 个分类 · '+(last.empty||0)+' 个空 · 共 '+Number(last.items||0).toLocaleString('zh-CN')+' 条 · 用时 '+hsDur(last.duration||0));
+    if(last.abort) bits.push('<b>提前结束：'+last.abort+'</b>');
+    bits.push('下次 '+(j.conf&&j.conf.on? acqWhen(j.nextTs)+(j.nextIn?'（'+hsDur(j.nextIn)+'后）':'') : '<b>未开启自动采集</b>'));
+  }else{
+    bits.push('还没有采集记录。打开自动采集，或点「立即采集一次」先把分类页热起来。');
+  }
+  if(j.conf&&!j.conf.lazy) bits.push('客户端触发采集已关闭：浏览只读缓存，无缓存的新分类会空，直到下次预采集。');
+  $('acState').innerHTML=bits.join('<br>');
+  const logs=(j.log||[]).slice(-6).reverse();
+  $('acLog').innerHTML=logs.length? logs.map(x=>
+    '<div>· '+acqWhen(x.ts)+' '+String(x.text||'').replace(/</g,'&lt;')+'</div>').join('')
+    : '<div>· 暂无记录</div>';
+}
+async function saveAcq(){
+  const at=($('acAt').value||'').trim();
+  if(at && !/^\d{1,2}[:：]\d{1,2}$/.test(at)){toast('固定时刻格式应为 HH:MM，例如 03:30');return;}
+  const body={action:'save',on:$('acOn').checked,sec:(+$('acMin').value||60)*60,
+    at:at.replace('：',':'),scope:$('acScope').value,hot:+$('acHot').value||12,
+    max:+$('acMax').value||80,budget:+$('acBudget').value||600,lazy:$('acLazy').checked};
+  const j=await api('/api/agg/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j&&j.ok){toast('采集调度已保存');loadAcq();}else toast('保存失败');
+}
+async function startAcq(){
+  const body={action:'start',scope:$('acScope').value,hot:+$('acHot').value||12,
+    max:+$('acMax').value||80,budget:+$('acBudget').value||600};
+  const j=await api('/api/agg/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j&&j.ok){toast('已开始采集，采完自动停止');renderAcq(j);loadAcq();}
+  else toast((j&&j.msg)||'启动失败');
+}
+async function stopAcq(){
+  const j=await api('/api/agg/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"action":"stop"}'});
+  if(j&&j.ok){toast('已发送停止指令');renderAcq(j);}else toast((j&&j.msg)||'当前没有在跑的采集');
+}
+async function clearAcq(){
+  if(!confirm('确定清零采集记录？本轮进度、上次采集结果与日志都会清空，采集计划与已缓存内容不受影响。')) return;
+  const j=await api('/api/agg/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"action":"clear"}'});
+  if(j&&j.ok){toast('采集记录已清零');renderAcq(j);loadAcq();}
+  else toast((j&&j.msg)||'清零失败');
+}
+function renderAggTree(cats){
+  const box=$('aggTree'); if(!box) return;
+  const es=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const tops=cats.filter(c=>!c.type_pid);
+  if(!tops.length){box.textContent='分类树还没建好，点「重建分类」';return;}
+  box.innerHTML=tops.map(t=>{
+    const subs=cats.filter(c=>String(c.type_pid)===String(t.type_id)).map(c=>es(c.type_name));
+    return '<div style="padding:5px 0;border-bottom:1px solid var(--line2)">'+
+      '<b style="color:var(--txt)">'+es(t.type_name)+'</b> '+
+      '<span>· '+(subs.length?subs.join(' / '):'（无细分类）')+'</span></div>';
+  }).join('');
+}
+async function saveAgg(){
+  const body={aggEnabled:$('aggOn').checked,
+    aggBrowseSources:+$('aggBrowse').value||8,
+    aggSearchSources:+$('aggSearch').value||0,
+    aggInTvbox:$('aggTvbox').checked,
+    aggTvSubs:$('aggTvSubs').checked,
+    aggHomeCat:$('aggHome').value||'',
+    aggPageSize:+$('aggPage').value||20,
+    aggTopPages:+$('aggTopPg').value||1,
+    aggSubPages:+$('aggSubPg').value||1,
+    aggSubSources:+$('aggSubSrc').value||12,
+    aggFillEnabled:$('aggFill').checked,
+    aggFillMax:+$('aggFillMax').value||20};
+  const j=await api('/api/agg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j.ok){toast('采集源设置已保存');loadAgg();}else toast('保存失败：'+(j.error||''));
+}
+async function rebuildAgg(){
+  const j=await api('/api/agg/rebuild',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j.ok){toast('正在重建分类，几秒后刷新');setTimeout(loadAgg,4000);}else toast('重建失败');
+}
+function copyAgg(){
+  const t=$('aggUrl').textContent;
+  navigator.clipboard.writeText(t).then(()=>toast('聚合源地址已复制')).catch(()=>toast(t));
+}
+async function aggTest(){
+  const q=($('aggQ').value||'').trim(); if(!q){toast('先输入片名');return;}
+  $('aggTestInfo').textContent='测试中…';
+  const j=await api('/api/agg/test?q='+encodeURIComponent(q));
+  if(!j||!j.ok){$('aggTestInfo').textContent='测试失败';return;}
+  $('aggTestInfo').textContent=j.hit+'/'+j.sources+' 个源有结果，共 '+j.items+' 条';
+  $('aggTestList').innerHTML='<div class="srcs">'+j.results.map(r=>
+    '<div class="srcrow'+(r.kept?'':' off')+'"><div class="srcname">'+String(r.name).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    +'<div class="srckey">'+(r.error?'请求失败':'原始 '+r.raw+' 条')+'</div></div><b>'+r.kept+' 条</b></div>').join('')+'</div>';
+}
+
+/* ---------- 分类管理 ---------- */
+let CATS=[];
+async function loadAggCats(){
+  const j=await api('/api/agg/cats');
+  if(!j||!j.ok) return;
+  CATS=j.groups||[];
+  renderCats();
+  const on=CATS.filter(g=>g.on).length;
+  const subOn=CATS.reduce((n,g)=>n+g.subs.filter(s=>s.on).length,0);
+  const subAll=CATS.reduce((n,g)=>n+g.subs.length,0);
+  $('catInfo').textContent=on+'/'+CATS.length+' 个大分类 · '+subOn+'/'+subAll+' 个细分类显示中 · 改动保存后生效';
+}
+function renderCats(){
+  const box=$('catlist'); box.innerHTML='';
+  if(!CATS.length){box.innerHTML='<div class="muted">分类树还没构建好，稍等几秒再进本页</div>';return;}
+  let dragEl=null;
+  CATS.forEach((g,gi)=>{
+    const mk=(on,txt,sub,gi2,si2)=>{
+      const row=document.createElement('div');
+      row.className='srcrow'+(sub?' catsub':'')+(!on?' off':'');
+      if(sub) row.style.paddingLeft='34px';
+      row.draggable=true;
+      row.dataset.kind=sub?'s':'g'; row.dataset.gi=String(gi);
+      if(sub) row.dataset.si=String(si2);
+      const sw=document.createElement('label'); sw.className='switch';
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!on;
+      cb.onchange=()=>{
+        if(sub){ g.subs[si2].on=cb.checked; }
+        else{ g.on=cb.checked; g.subs.forEach(s=>s.on=cb.checked); }
+        renderCats();
+      };
+      const ii=document.createElement('i'); sw.appendChild(cb); sw.appendChild(ii);
+      const name=document.createElement('div'); name.className='srcname';
+      name.textContent=txt;
+      const grip=document.createElement('span'); grip.className='grip';
+      grip.title='拖动调整顺序'; grip.textContent='⠿⠿';
+      row.appendChild(sw); row.appendChild(name); row.appendChild(grip);
+      row.addEventListener('dragstart',e=>{
+        dragEl=row; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move';
+        try{e.dataTransfer.setData('text/plain','x');}catch(_){}
+      });
+      row.addEventListener('dragend',()=>{
+        row.classList.remove('dragging');
+        document.querySelectorAll('.srcrow.over').forEach(x=>x.classList.remove('over'));
+        if(dragEl){syncCatOrderFromDom();dragEl=null;}
+      });
+      row.addEventListener('dragover',e=>{
+        e.preventDefault(); e.dataTransfer.dropEffect='move';
+        if(!dragEl||dragEl===row) return;
+        const rect=row.getBoundingClientRect();
+        const before=(e.clientY-rect.top)<rect.height/2;
+        document.querySelectorAll('.srcrow.over').forEach(x=>x.classList.remove('over'));
+        row.classList.add('over');
+        if(before) box.insertBefore(dragEl,row);
+        else{ if(row.nextSibling) box.insertBefore(dragEl,row.nextSibling); else box.appendChild(dragEl); }
+      });
+      row.addEventListener('drop',e=>e.preventDefault());
+      return row;
+    };
+    box.appendChild(mk(g.on,g.name+'（源 '+g.srcN+'）',false));
+    g.subs.forEach((s,si)=>box.appendChild(mk(s.on,s.name+'（源 '+s.srcN+'）',true,gi,si)));
+  });
+}
+function syncCatOrderFromDom(){
+  const box=$('catlist');
+  const next=[]; let cur=null, moved=false;
+  [...box.children].forEach(el=>{
+    const gi=+el.dataset.gi, g=CATS[gi];
+    if(!g) return;
+    if(el.dataset.kind==='g'){
+      if(!g._n) g._n=[];
+      cur=g; next.push(g);
+    } else if(cur){
+      const s=(cur.subs||[])[+el.dataset.si];
+      if(s && !cur._n.includes(s)){ cur._n.push(s); moved=true; }
+    }
+  });
+  CATS.forEach(g=>{
+    if(g._n){ const rest=g.subs.filter(s=>!g._n.includes(s)); g.subs=g._n.concat(rest); delete g._n; }
+  });
+  const merged=next.concat(CATS.filter(g=>!next.includes(g)));
+  if(merged.some((g,i)=>CATS[i]!==g)) moved=true;
+  CATS=moved?merged:CATS;
+  if(moved) toast('顺序已调整 · 点「保存并生效」写入');
+}
+async function saveAggCats(){
+  const order=[], off=[];
+  CATS.forEach(g=>{
+    order.push(g.name); if(!g.on) off.push(g.name);
+    g.subs.forEach(s=>{ order.push(s.name); if(!s.on) off.push(s.name); });
+  });
+  const j=await api('/api/agg/cats',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({aggCatOrder:order,aggCatOff:off})});
+  if(j&&j.ok){toast('分类设置已保存');loadAggCats();}
+  else toast('保存失败：'+((j&&j.error)||''));
+}
+function allCats(on){
+  CATS.forEach(g=>{g.on=on;g.subs.forEach(s=>s.on=on);});
+  renderCats();
+}
+
 /* ---------- 订阅地址 ---------- */
 function copySub(){
   const t=$('suburl').textContent;
@@ -1080,5 +2186,18 @@ function copySub(){
 }
 
 loadStatus(); loadWords().then(()=>{loadSrc();}); loadUpdate(); loadLogo();
-setInterval(loadStatus,15000);
+// 概览不再定时自动刷新：默认只加载一次，需要时手动打开「自动刷新」（状态不落盘，关页面即失效）
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) return;
+  if(AUTO.on&&$('pane-overview').classList.contains('on')) loadStatus();
+});
+// 点 MAC 复制，方便跟路由器 / 机顶盒里的地址比对
+document.addEventListener('click',e=>{
+  const td=e.target.closest?e.target.closest('#devtbl td.mac'):null;
+  if(!td) return;
+  const v=td.textContent.trim();
+  if(!v||v==='—'){toast('这台设备暂时没有 MAC（NAS ARP 表里查不到）');return;}
+  if(navigator.clipboard) navigator.clipboard.writeText(v).then(()=>toast('MAC 已复制：'+v)).catch(()=>toast(v));
+  else toast(v);
+});
 </script></body></html>

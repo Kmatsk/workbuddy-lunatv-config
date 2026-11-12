@@ -3,33 +3,47 @@ services:
     image: python:3.12-alpine
     container_name: tvbox-guard
     restart: unless-stopped
-    # 桥接 + 端口映射（不再用 host 网络）：Docker 面板里能看到 3032 并直接点开，
+    # 桥接 + 端口映射（不再用 host 网络）：Docker 面板里能看到 3032 / 3035 并直接点开，
     # 局域网客户端来源 IP 仍会原样传给容器（已实测 192.168.3.x 不被 NAT 改写）
+    # 3032：主实例（带屏蔽，LunaTV 订阅用）
+    # 3035：全分类实例（不屏蔽，独立聚合源，GUARD_OPEN=1）
     ports:
       - "3032:3032"
+      - "3035:3035"
     working_dir: /app
-    command: python guard.py
+    # 同一个容器里起两个进程，各自独立 config / cache / backups / logo
+    command:
+      - sh
+      - -c
+      - |
+        GUARD_PORT=3032 SELF_BASE=http://192.168.3.100:3032 python guard.py & P1=$$!
+        GUARD_PORT=3035 SELF_BASE=http://192.168.3.100:3035 GUARD_OPEN=1 GUARD_CONFIG=/app/config-open.json GUARD_CACHE=/app/cache-open GUARD_BACKUP=/app/backups-open GUARD_LOGO=/app/logo-open python guard.py & P2=$$!
+        wait $$P1 $$P2
     volumes:
       - /vol1/1000/docker/tvbox-guard/guard.py:/app/guard.py:ro
       - /vol1/1000/docker/tvbox-guard/admin.html:/app/admin.html:ro
+      # host ARP table (read-only): LAN client MAC for device identity
+      - /proc/1/net/arp:/host/arp:ro
       - /vol1/1000/docker/tvbox-guard/config.json:/app/config.json
+      - /vol1/1000/docker/tvbox-guard/config-open.json:/app/config-open.json
       - /vol1/1000/docker/tvbox-guard/logo:/app/logo
+      - /vol1/1000/docker/tvbox-guard/logo-open:/app/logo-open
       - /vol1/1000/docker/tvbox-guard/backups:/app/backups
+      - /vol1/1000/docker/tvbox-guard/backups-open:/app/backups-open
       - /vol1/1000/docker/tvbox-guard/cache:/app/cache
+      - /vol1/1000/docker/tvbox-guard/cache-open:/app/cache-open
     environment:
       - LUNA_BASE=http://192.168.3.100:3030
-      - SELF_BASE=http://192.168.3.100:3032
       # 真实值放在同目录 .env（不入库）
       - LUNA_USER=${LUNA_USER}
       - LUNA_PASS=${LUNA_PASS}
-      - GUARD_PORT=3032
       - TZ=Asia/Shanghai
       - CMS_BUDGET_MB=48
       - IMG_BUDGET_MB=256
       - TMDB_WARM_MAX=400
       - TMDB_LANG=zh-CN
       - TMDB_TOKEN=${TMDB_TOKEN}
-    mem_limit: 128m
+    mem_limit: 256m
     logging:
       driver: json-file
       options:
