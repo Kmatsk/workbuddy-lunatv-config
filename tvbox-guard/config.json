@@ -164,7 +164,7 @@
   "backupKeep": 5,
   "tvboxRefreshMinutes": 5,
   "sourceLimit": 1,
-  "activeSource": "",
+  "activeSource": "dyttzyapi.com",
   "tmdbEnabled": true,
   "categoryFilterEnabled": true,
   "titleFilterEnabled": true,

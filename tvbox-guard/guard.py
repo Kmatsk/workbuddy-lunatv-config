@@ -1573,6 +1573,27 @@ def search_extras(base_key=None):
     return [k for k in keys if k != primary]
 
 
+# 搜索失败熔断：连续失败 2 次的源临时退出聚合，避免每次冷搜都白等 10 秒，到期自动恢复
+_src_fail = {}
+_src_fail_lock = threading.Lock()
+SRC_FAIL_COOL = 180
+
+
+def src_fail_note(key, ok):
+    with _src_fail_lock:
+        if ok:
+            _src_fail.pop(key, None)
+            return
+        r = _src_fail.get(key) or {}
+        _src_fail[key] = {"n": int(r.get("n") or 0) + 1, "ts": time.time()}
+
+
+def src_cooling(key):
+    with _src_fail_lock:
+        r = _src_fail.get(key)
+    return bool(r) and int(r.get("n") or 0) >= 2 and time.time() - float(r.get("ts") or 0) < SRC_FAIL_COOL
+
+
 def search_targets(base_key):
     """聚合搜索要打哪些上游：主源 + 额外源（数量受 searchLimit 限制）
 
@@ -1585,9 +1606,12 @@ def search_targets(base_key):
         return [base_key]
     if not _f.get("search_all", True):
         return [base_key]
-    # 多查几个候选：某些源没有该片源（甚至挂掉）时不占用「额外源数量」的额度，
-    # 由 merge_search 只并入前 N 个真正有结果的额外源
-    return [base_key] + search_extras(base_key)[:7]
+    # 某些源没有该片源（甚至挂掉）时不占用「额外源数量」的额度，
+    # 由 merge_search 只并入前 N 个真正有结果的额外源；失败熔断中的源直接跳过
+    extras = [k for k in search_extras(base_key) if not src_cooling(k)]
+    lim = int(_f.get("search_limit") or 0)
+    cand = extras if lim <= 0 else extras[:max(8, lim * 3)]
+    return [base_key] + cand
 
 
 def _search_breadth():
@@ -1619,8 +1643,11 @@ def merge_search(base_key, query):
         if not meta:
             return k, None
         try:
-            return k, _upstream_json(meta, query, 10)
+            d = _upstream_json(meta, query, 10)
+            src_fail_note(k, isinstance(d, dict))
+            return k, d
         except Exception as e:
+            src_fail_note(k, False)
             print("[search] %s fail: %s" % (k, str(e)[:60]), flush=True)
             return k, None
 
@@ -1807,7 +1834,7 @@ def cms_build(key, query, meta, cacheable=True):
     url = meta["api"] + ("?" + query if query else "")
     req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0.0"})
     t0 = time.time()
-    raw = urllib.request.urlopen(req, timeout=30).read().decode("utf-8", "ignore")
+    raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "ignore")
     _stats["slow"] = _stats.get("slow", 0) + (1 if time.time() - t0 > 3 else 0)
     try:
         data = json.loads(raw)
