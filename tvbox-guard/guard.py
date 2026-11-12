@@ -44,6 +44,7 @@ _f = {"cats": list(DEFAULT_CATS), "titles": list(DEFAULT_TITLES),
       "disabled": set(), "order": [],
       "sync_min": 5, "backup": True, "keep": 5, "tvcache_min": 5,
       "src_limit": 0, "src_active": "", "tmdb_on": True,
+      "fo_on": True, "fo_thresh": 3, "fo_list": [],
       "cats_on": True, "titles_on": True, "filter_on": True,
       "search_all": True, "search_limit": 0,
       "sync_on": True, "img_on": True, "idle_min": 5, "ignore_dev": set(DEFAULT_IGNORE_DEVS)}
@@ -480,7 +481,8 @@ def read_config_file():
                 "placeholderPattern": DEFAULT_PLACEHOLDER,
                 "disabledSources": [], "sourceOrder": [],
                 "sourceSyncMinutes": 5, "backupOnSave": True, "backupKeep": 5,
-                "tvboxRefreshMinutes": 5, "sourceLimit": 0, "activeSource": ""}
+                "tvboxRefreshMinutes": 5, "sourceLimit": 0, "activeSource": "",
+                "backupSources": [], "autoFailover": True, "failoverThreshold": 3}
 
 
 def apply_config(c):
@@ -495,6 +497,13 @@ def apply_config(c):
     _f["tvcache_min"] = max(1, min(120, int(c.get("tvboxRefreshMinutes") or 5)))
     _f["src_limit"] = max(0, min(50, int(c.get("sourceLimit") or 0)))
     _f["src_active"] = str(c.get("activeSource") or "").strip()
+    _f["fo_on"] = bool(c.get("autoFailover", True))
+    _f["fo_list"] = [str(k).strip() for k in (c.get("backupSources") or []) if str(k).strip()]
+    try:
+        _th = int(c.get("failoverThreshold") or 3)
+    except Exception:
+        _th = 3
+    _f["fo_thresh"] = max(1, min(10, _th))
     _f["tmdb_on"] = bool(c.get("tmdbEnabled", True))
     _f["cats_on"] = bool(c.get("categoryFilterEnabled", True))
     _f["titles_on"] = bool(c.get("titleFilterEnabled", True))
@@ -556,6 +565,9 @@ def save_config(c):
         "tvboxRefreshMinutes": max(1, min(120, int(pick("tvboxRefreshMinutes", 5) or 5))),
         "sourceLimit": max(0, min(50, int(pick("sourceLimit", 0) or 0))),
         "activeSource": str(pick("activeSource", "") or "").strip(),
+        "autoFailover": bool(pick("autoFailover", True)),
+        "failoverThreshold": max(1, min(10, int(pick("failoverThreshold", 3) or 3))),
+        "backupSources": [str(k).strip() for k in pick("backupSources", []) or [] if str(k).strip()],
         "tmdbEnabled": bool(pick("tmdbEnabled", True)),
         "categoryFilterEnabled": bool(pick("categoryFilterEnabled", True)),
         "titleFilterEnabled": bool(pick("titleFilterEnabled", True)),
@@ -573,6 +585,9 @@ def save_config(c):
         fp.flush()
     apply_config(data)
     _f["mtime"] = os.path.getmtime(CONFIG_PATH)
+    # 用户手动改了主源/下发数量/启停/顺序 → 放弃自动切换状态，回到配置主源
+    if any(k in c for k in ("activeSource", "sourceLimit", "disabledSources", "sourceOrder")):
+        fo_reset(silent=True)
     # 开关变化会影响封面改写，旧缓存一并丢弃
     try:
         with _cms_lock:
@@ -804,8 +819,9 @@ def prefetch_cms():
         keys = [k for k in srcs if not src_off(k)]
         _order = {k: i for i, k in enumerate(_f["order"])}
         keys.sort(key=lambda k: _order.get(k, len(_order) + 100))
-        if _f.get("src_active"):
-            keys = [k for k in keys if k == _f["src_active"]] or keys[:1]
+        act0 = fo_active() or _f.get("src_active") or ""
+        if act0:
+            keys = [k for k in keys if k == act0] or keys[:1]
         elif int(_f.get("src_limit") or 0) > 0:
             keys = keys[: int(_f["src_limit"])]
         if not keys:
@@ -1036,6 +1052,8 @@ def warm_loop():
             stats_save()
             devices_save()
             searchstats_save()
+            fo_probe()
+            fo_save()
         except Exception as e:
             print("[warm] error:", e, flush=True)
         time.sleep(15)
@@ -1549,6 +1567,14 @@ def pick_delivered(keys):
     """实际下发给机顶盒的源（与 handle_tvbox 一致）"""
     act = _f.get("src_active") or ""
     lim = int(_f.get("src_limit") or 0)
+    ovr = fo_active()          # 主源异常时自动顶上的备源
+    if ovr:
+        rest = [k for k in keys if k != ovr]
+        if act:
+            return [ovr]
+        if lim > 0:
+            return ([ovr] + rest)[:lim]
+        return [ovr] + rest
     if act:
         one = [k for k in keys if k == act]
         return one or keys[:1]
@@ -1571,6 +1597,214 @@ def search_extras(base_key=None):
     keys = ordered_source_keys()
     primary = base_key or search_primary()
     return [k for k in keys if k != primary]
+
+
+# ---------------- 备源 / 主源自动切换 ----------------
+# 主源连续失败到阈值就把备源顶到第一位；备源也挂就按备源顺序继续往下切；原主源恢复后自动切回
+FO_FILE = os.path.join(CACHE_DIR, "failover.json")
+FO_COOL = 600        # 失败计数窗口：超过 10 分钟重新计数
+FO_PROBE_SEC = 180   # 挂在备源上时，每隔 3 分钟探测一次原主源
+_fo = {"active": "", "fail": {}, "log": [], "since": 0.0, "switches": 0,
+       "probe_ts": 0.0, "probe_ok": 0, "dirty": False, "lock": threading.Lock()}
+
+
+def fo_load():
+    try:
+        with open(FO_FILE, "r", encoding="utf-8") as fp:
+            d = json.load(fp)
+        _fo["active"] = str(d.get("active") or "")
+        _fo["since"] = float(d.get("since") or 0)
+        _fo["switches"] = int(d.get("switches") or 0)
+        _fo["log"] = [x for x in (d.get("log") or []) if isinstance(x, dict)][-20:]
+        if _fo["active"]:
+            print("[failover] 恢复上次自动切换状态: %s" % _fo["active"], flush=True)
+    except Exception:
+        pass
+
+
+def fo_save(force=False):
+    if not force and not _fo.get("dirty"):
+        return
+    tmp = FO_FILE + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fp:
+            json.dump({"active": _fo["active"], "since": _fo["since"],
+                       "switches": _fo["switches"], "log": _fo["log"][-20:]},
+                      fp, ensure_ascii=False)
+        os.replace(tmp, FO_FILE)
+        _fo["dirty"] = False
+    except Exception as e:
+        print("[failover] save fail:", e, flush=True)
+
+
+def fo_conf_primary():
+    """配置里的主源：activeSource 优先，否则是片源顺序里的第一个启用源"""
+    keys = ordered_source_keys()
+    if not keys:
+        return ""
+    act = _f.get("src_active") or ""
+    if act:
+        one = [k for k in keys if k == act]
+        return one[0] if one else keys[0]
+    return keys[0]
+
+
+def fo_active():
+    """自动切换后真正生效的主源（空 = 用配置主源）"""
+    act = _fo.get("active") or ""
+    if not act:
+        return ""
+    if act not in sources_cached() or src_off(act):
+        return ""
+    return act
+
+
+def fo_primary():
+    return fo_active() or fo_conf_primary()
+
+
+def fo_thresh():
+    return max(1, min(10, int(_f.get("fo_thresh") or 3)))
+
+
+def fo_backups():
+    """备源顺序：用户指定的优先；没指定就自动用其它启用源（按片源顺序）"""
+    cand = [k for k in (_f.get("fo_list") or []) if k in sources_cached() and not src_off(k)]
+    if not cand:
+        cand = ordered_source_keys()
+    seen, out = set(), []
+    for k in cand:
+        if k not in seen:
+            seen.add(k)
+            out.append(k)
+    return out
+
+
+def fo_candidates():
+    """当前主源之后可切的目标：按备源顺序，跳过熔断中/屡次失败的"""
+    cur = fo_primary()
+    th = fo_thresh()
+    now = time.time()
+    out = []
+    for k in fo_backups():
+        if k == cur:
+            continue
+        r = _fo["fail"].get(k) or {}
+        if int(r.get("n") or 0) >= th and now - float(r.get("ts") or 0) < FO_COOL:
+            continue
+        if src_cooling(k):
+            continue
+        out.append(k)
+    return out
+
+
+def fo_reset(silent=False):
+    """回到配置里的主源"""
+    with _fo["lock"]:
+        was = _fo.get("active") or ""
+        _fo["active"] = ""
+        _fo["since"] = 0.0
+        _fo["fail"] = {}
+        _fo["probe_ok"] = 0
+        _fo["dirty"] = True
+        if was and not silent:
+            _fo["log"].append({"ts": time.time(), "from": was,
+                               "to": fo_conf_primary(), "why": "手动切回配置主源"})
+            _fo["log"] = _fo["log"][-20:]
+    if was:
+        print("[failover] 切回配置主源", flush=True)
+        fo_save(True)
+
+
+def fo_switch(why="上游连续失败"):
+    """把备源顶上来；没有可用备源时保持原样并记录"""
+    cur = fo_primary()
+    cands = fo_candidates()
+    conf = fo_conf_primary()
+    if not cands:
+        with _fo["lock"]:
+            _fo["log"].append({"ts": time.time(), "from": cur, "to": "", "why": why + " · 无可用备源"})
+            _fo["log"] = _fo["log"][-20:]
+            _fo["dirty"] = True
+        print("[failover] %s 无可用备源" % (cur or "-"), flush=True)
+        fo_save(True)
+        return ""
+    nxt = cands[0]
+    with _fo["lock"]:
+        _fo["active"] = "" if nxt == conf else nxt
+        _fo["since"] = time.time()
+        _fo["switches"] = int(_fo.get("switches") or 0) + 1
+        _fo["probe_ok"] = 0
+        _fo["log"].append({"ts": time.time(), "from": cur, "to": nxt, "why": why})
+        _fo["log"] = _fo["log"][-20:]
+        _fo["dirty"] = True
+    print("[failover] 主源切换 %s -> %s (%s)" % (cur or "-", nxt, why), flush=True)
+    fo_save(True)
+    return nxt
+
+
+def fo_note(key, ok, reason=""):
+    """上报一次上游结果：只有当前主源的失败累计，达到阈值就切备源"""
+    if not _f.get("fo_on", True) or not key:
+        return
+    key = str(key)
+    if key != fo_primary():
+        if ok:
+            _fo["fail"].pop(key, None)
+        return
+    if ok:
+        if _fo["fail"].pop(key, None) is not None:
+            _fo["dirty"] = True
+        return
+    now = time.time()
+    with _fo["lock"]:
+        r = _fo["fail"].get(key) or {"n": 0, "ts": now}
+        if now - float(r.get("ts") or 0) > FO_COOL:
+            r = {"n": 0, "ts": now}
+        r["n"] = int(r.get("n") or 0) + 1
+        r["ts"] = now
+        r["why"] = str(reason or "")[:60]
+        _fo["fail"][key] = r
+        cnt = r["n"]
+        _fo["dirty"] = True
+    if cnt >= fo_thresh():
+        fo_switch(reason or "上游连续失败")
+
+
+def fo_probe(force=False):
+    """挂在备源上时定期探测原主源，连续 2 次正常就切回"""
+    if not _f.get("fo_on", True) or not fo_active():
+        return None
+    now = time.time()
+    if not force and now - float(_fo.get("probe_ts") or 0) < FO_PROBE_SEC:
+        return None
+    _fo["probe_ts"] = now
+    key = fo_conf_primary()
+    meta = sources_cached().get(key)
+    if not meta:
+        return None
+    try:
+        d = _upstream_json(meta, "ac=class", 8)
+        ok = isinstance(d, dict) and bool(d.get("class") or d.get("list"))
+    except Exception as e:
+        ok = False
+        print("[failover] 原主源 %s 仍不可用: %s" % (key, str(e)[:50]), flush=True)
+    with _fo["lock"]:
+        _fo["probe_ok"] = (int(_fo.get("probe_ok") or 0) + 1) if ok else 0
+        cnt = _fo["probe_ok"]
+        if cnt >= 2:
+            _fo["log"].append({"ts": time.time(), "from": fo_active(),
+                               "to": key, "why": "原主源已恢复 · 自动切回"})
+            _fo["log"] = _fo["log"][-20:]
+            _fo["active"] = ""
+            _fo["since"] = 0.0
+            _fo["fail"] = {}
+            _fo["probe_ok"] = 0
+            _fo["dirty"] = True
+    if cnt >= 2:
+        print("[failover] 原主源恢复，切回 %s" % key, flush=True)
+        fo_save(True)
+    return ok
 
 
 # 搜索失败熔断：连续失败 2 次的源临时退出聚合，避免每次冷搜都白等 10 秒，到期自动恢复
@@ -1645,9 +1879,11 @@ def merge_search(base_key, query):
         try:
             d = _upstream_json(meta, query, 10)
             src_fail_note(k, isinstance(d, dict))
+            fo_note(k, isinstance(d, dict), "搜索无有效返回")
             return k, d
         except Exception as e:
             src_fail_note(k, False)
+            fo_note(k, False, "搜索超时/失败")
             print("[search] %s fail: %s" % (k, str(e)[:60]), flush=True)
             return k, None
 
@@ -1834,14 +2070,20 @@ def cms_build(key, query, meta, cacheable=True):
     url = meta["api"] + ("?" + query if query else "")
     req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0.0"})
     t0 = time.time()
-    raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "ignore")
+    try:
+        raw = urllib.request.urlopen(req, timeout=15).read().decode("utf-8", "ignore")
+    except Exception as e:
+        fo_note(key, False, str(e)[:50] or "上游请求失败")
+        raise
     _stats["slow"] = _stats.get("slow", 0) + (1 if time.time() - t0 > 3 else 0)
     try:
         data = json.loads(raw)
     except Exception:
+        fo_note(key, False, "上游返回非 JSON")
         out = raw.encode()
         cms_store(ck, out, "text/plain; charset=utf-8", cacheable)
         return out, "text/plain; charset=utf-8"
+    fo_note(key, True)
     if isinstance(data, dict):
         if isinstance(data.get("class"), list):
             if cacheable and data["class"]:
@@ -2015,6 +2257,9 @@ class Handler(BaseHTTPRequestHandler):
                                    "sourceOrder": c.get("sourceOrder") or [],
                                    "sourceLimit": c.get("sourceLimit", 0) or 0,
                                    "activeSource": c.get("activeSource", "") or "",
+                                   "autoFailover": bool(_f.get("fo_on", True)),
+                                   "failoverThreshold": fo_thresh(),
+                                   "backupSources": list(_f.get("fo_list") or []),
                                    "filterEnabled": bool(_f.get("filter_on", True)),
                                    "categoryFilterEnabled": bool(_f.get("cats_on", True)),
                                    "titleFilterEnabled": bool(_f.get("titles_on", True)),
@@ -2033,7 +2278,18 @@ class Handler(BaseHTTPRequestHandler):
                                    "delivered": len(delivered),
                                    "searchAllSources": bool(_f.get("search_all", True)),
                                    "searchLimit": int(_f.get("search_limit") or 0),
-                                   "searchPrimary": search_primary(),
+                                   "searchPrimary": fo_primary(),
+                                   "primary": fo_primary(),
+                                   "configuredPrimary": fo_conf_primary(),
+                                   "failoverActive": bool(fo_active()),
+                                   "failoverSince": _fo.get("since") or 0,
+                                   "failoverSwitches": int(_fo.get("switches") or 0),
+                                   "failoverLog": list(_fo.get("log") or [])[-8:][::-1],
+                                   "failoverFail": {k: dict(v) for k, v in (_fo.get("fail") or {}).items()},
+                                   "autoFailover": bool(_f.get("fo_on", True)),
+                                   "failoverThreshold": fo_thresh(),
+                                   "backupSources": list(_f.get("fo_list") or []),
+                                   "backupChain": fo_backups(),
                                    "searchExtraTotal": len(search_extras()),
                                    "searchSources": _search_breadth()})
             if p.path == "/api/test":
@@ -2094,6 +2350,42 @@ class Handler(BaseHTTPRequestHandler):
             if p.path == "/api/devices/reset":
                 devices_reset()
                 return self._json({"ok": True, **devices_snapshot()})
+            if p.path == "/api/failover/reset":
+                fo_reset()
+                return self._json({"ok": True, "primary": fo_primary(),
+                                   "failoverActive": bool(fo_active())})
+            if p.path == "/api/failover/probe":
+                k = fo_primary()
+                meta = sources_cached().get(k) or {}
+                ok, ms, msg = False, 0, "源不存在"
+                if meta:
+                    t0 = time.time()
+                    try:
+                        d = _upstream_json(meta, "ac=class", 10)
+                        ok = isinstance(d, dict) and bool(d.get("class") or d.get("list"))
+                        msg = ("分类 %d 个" % len(d.get("class") or [])) if ok else "返回空分类"
+                    except Exception as e:
+                        msg = str(e)[:60]
+                    ms = int((time.time() - t0) * 1000)
+                    fo_note(k, ok, msg)
+                # 当前在备源上时，顺手探一下原主源；恢复了就立刻切回去（手动检测不受冷却限制）
+                back = ""
+                if fo_active():
+                    k2 = fo_conf_primary()
+                    m2 = sources_cached().get(k2) or {}
+                    if m2:
+                        try:
+                            d2 = _upstream_json(m2, "ac=class", 10)
+                            if isinstance(d2, dict) and (d2.get("class") or d2.get("list")):
+                                back = k2
+                        except Exception:
+                            back = ""
+                    if back:
+                        fo_reset()
+                return self._json({"ok": True, "source": k, "alive": ok, "ms": ms,
+                                   "detail": msg, "primary": fo_primary(),
+                                   "switchedBack": back,
+                                   "failoverActive": bool(fo_active())})
             if p.path == "/api/search_stats/reset":
                 searchstats_reset()
                 return self._json({"ok": True, **searchstats_snapshot()})
@@ -2194,9 +2486,16 @@ class Handler(BaseHTTPRequestHandler):
         # 单源/限量模式：只下发指定数量的源，机顶盒启动只加载这些
         act = _f.get("src_active") or ""
         limit = int(_f.get("src_limit") or 0)
+        ovr = fo_active()      # 自动切换后的生效主源，排到第一位
         if act:
-            picked = [x for x in sites if (x.get("key") or "") == act]
+            picked = [x for x in sites if (x.get("key") or "") == (ovr or act)]
             sites = picked or sites[:1]
+        elif ovr:
+            first = [x for x in sites if (x.get("key") or "") == ovr]
+            rest = [x for x in sites if (x.get("key") or "") != ovr]
+            sites = ([first[0]] + rest) if first else sites
+            if limit > 0:
+                sites = sites[:limit]
         elif limit > 0:
             sites = sites[:limit]
         cfg["sites"] = sites
@@ -2360,6 +2659,7 @@ if __name__ == "__main__":
     stats_load()
     devices_load()
     searchstats_load()
+    fo_load()
     img_cleanup()
     threading.Thread(target=warm_loop, daemon=True).start()
     print("tvbox-guard listening on 0.0.0.0:%d" % LISTEN_PORT, flush=True)

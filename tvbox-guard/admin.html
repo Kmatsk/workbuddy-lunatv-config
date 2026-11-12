@@ -65,6 +65,12 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 .srcname{flex:1;font-size:13px}
 .srckey{font-size:11px;color:#6f778a;font-family:ui-monospace,monospace}
 .grip{flex:0 0 auto;color:#6f778a;font-size:16px;user-select:none;cursor:grab;padding:0 2px;letter-spacing:-2px}
+.pill.bad{background:#2a1b1b;border-color:#5a2a2a;color:#ff9b9b}
+.pill.bad .dot{background:#ff6b6b}
+.fobadge{flex:0 0 auto;min-width:20px;height:20px;padding:0 4px;border-radius:6px;background:#20242f;border:1px solid #2c3142;color:#9aa3b8;font-size:11px;display:flex;align-items:center;justify-content:center}
+.foitem{display:flex;align-items:center;gap:10px}
+.foitem .rm{background:#20242f;color:#8b93a7;padding:3px 8px;font-size:12px;border-radius:6px}
+.foitem .rm:hover{background:#3a2226;color:#ff8c8c}
 .grip:hover{color:#c9d0df}
 .statrow{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
 .statrow button{padding:6px 12px;font-size:12px}
@@ -115,11 +121,12 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
     <button data-p="overview" class="on">概览</button>
     <button data-p="words">屏蔽词</button>
     <button data-p="sources">片源管理</button>
+    <button data-p="srclist">片源列表</button>
     <button data-p="search">搜索统计</button>
     <button data-p="update">更新设置</button>
     <button data-p="logo">LOGO 设置</button>
   </nav>
-  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v1.9</span></div>
+  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v2.0</span></div>
 </aside>
 
 <main>
@@ -263,11 +270,45 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
         </div>
       </div>
       <div class="field">
-        <div><div class="t">指定哪个源</div><div class="d">选「自动」则按上面片源列表的顺序取前 N 个</div></div>
+        <div><div class="t">指定哪个源</div><div class="d">选「自动」则按「片源列表」页的顺序取前 N 个</div></div>
         <div class="ctl"><select class="sel" id="srcActive"><option value="">自动（按顺序）</option></select></div>
       </div>
       <div class="rowbtns"><button onclick="saveAll()">保存并生效</button>
         <span class="muted">保存后机顶盒刷新配置即生效</span></div>
+    </div>
+    <div class="card">
+      <h2>备源与自动切换 <small>主源挂了自动顶备源，机顶盒刷新配置即换站</small></h2>
+      <div class="statrow" style="margin-bottom:10px">
+        <span class="pill" id="foPill"><span class="dot"></span><span id="foPillText">当前主源 —</span></span>
+        <span class="muted" id="foState">—</span>
+        <button class="ghost" onclick="probePrimary()">立即检测主源</button>
+        <button class="ghost" onclick="resetFailover()">切回配置主源</button>
+      </div>
+      <div class="field">
+        <div><div class="t">主源异常自动切换</div><div class="d">主源连续请求失败达到阈值时，自动把备源顶到下发列表第一位；备源也挂就按备源顺序继续往下切，原主源恢复后自动切回</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="foOn"><i></i></label></div>
+      </div>
+      <div class="field">
+        <div><div class="t">连续失败阈值</div><div class="d">同一个源连续失败几次才切换（1 ~ 10）。1 = 立即切、最灵敏但可能误判；3 = 推荐</div></div>
+        <div class="ctl"><input class="sel" id="foThresh" type="number" min="1" max="10" value="3" style="width:110px"></div>
+      </div>
+      <div class="field" style="display:block">
+        <div><div class="t">备源顺序</div><div class="d" id="foHint">从上往下依次尝试；不指定时自动按片源列表顺序使用其它启用源</div></div>
+        <div class="addrow" style="margin:10px 0 0">
+          <select class="sel" id="foPick"><option value="">选择要加入的备源…</option></select>
+          <button onclick="addBackup()">加入备源</button>
+        </div>
+        <div class="srcs" id="foList" style="margin-top:10px"></div>
+      </div>
+      <div class="rowbtns" style="margin-top:14px">
+        <button onclick="saveFailover()">保存并生效</button>
+        <button class="ghost" onclick="loadSrc()">还原</button>
+        <span class="muted" id="foInfo">—</span>
+      </div>
+      <div style="margin-top:16px">
+        <div class="muted" style="margin-bottom:6px">最近切换记录 <span id="foCount"></span></div>
+        <div id="foLog" class="muted">暂无切换记录</div>
+      </div>
     </div>
     <div class="card">
       <h2>搜索范围 <small>机顶盒搜索时用哪些源，不影响启动速度</small></h2>
@@ -287,13 +328,29 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
         <span class="muted" id="searchInfo">0 = 全部额外源；N = 最多并入 N 个真正有结果的额外源（没有该片源的源不占名额）</span>
       </div>
     </div>
+  </section>
+
+  <!-- 片源列表 -->
+  <section class="pane" id="pane-srclist">
     <div class="card">
       <h2>片源列表 <small>仅影响机顶盒，不影响 LunaTV 网页</small></h2>
+      <div class="statrow" style="margin-bottom:10px">
+        <span class="muted" id="srcListInfo">—</span>
+        <button class="ghost" onclick="loadSrc()">重新读取</button>
+      </div>
       <div class="srcs" id="srclist"></div>
       <div class="rowbtns">
         <button onclick="saveAll()">保存并生效</button>
         <button class="ghost" onclick="loadSrc()">还原</button>
         <span class="muted">关闭开关 = 该源不出现在机顶盒；按住行拖动调整分类栏顺序，保存后生效</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>说明</h2>
+      <div class="muted" style="line-height:1.9">
+        · 这里的顺序就是机顶盒分类栏里站点的先后顺序，也是「加载模式 → 自动」取前 N 个的依据。<br>
+        · 关闭某个源 = 不下发、不参与聚合搜索；LunaTV 网页里停用的源也会自动显示为关闭，无法在这里单独打开。<br>
+        · 主源异常自动切备源、搜索范围等设置在「片源管理」页。
       </div>
     </div>
   </section>
@@ -416,7 +473,8 @@ td.ok{color:var(--green)}td.bad{color:var(--red)}
 const $=id=>document.getElementById(id);
 let CFG={categories:[],titles:[]}, SRC=[], LOGO_TS=0;
 const TITLES={overview:['概览','运行状态与机顶盒订阅地址'],words:['屏蔽词','分类与标题双层过滤'],
-  sources:['片源管理','开关启用状态与显示顺序'],search:['搜索统计','机顶盒搜索关键词按次数排行'],
+  sources:['片源管理','加载模式 / 备源切换 / 搜索范围'],
+  srclist:['片源列表','启用状态与分类栏顺序'],search:['搜索统计','机顶盒搜索关键词按次数排行'],
   update:['更新设置','源同步与配置备份'],
   logo:['LOGO 设置','TVBox 首页展示图']};
 
@@ -429,7 +487,7 @@ $('nav').addEventListener('click',e=>{
   document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+b.dataset.p));
   $('pageTitle').textContent=TITLES[b.dataset.p][0];
   $('pageSub').textContent=TITLES[b.dataset.p][1];
-  if(b.dataset.p==='sources') loadSrc();
+  if(b.dataset.p==='sources'||b.dataset.p==='srclist') loadSrc();
   if(b.dataset.p==='search') loadSearchStats();
   if(b.dataset.p==='logo') loadLogo();
 });
@@ -767,6 +825,7 @@ async function loadSrc(){
   const [j,c]=await Promise.all([api('/api/sources'),api('/api/config')]);
   SRC=j.sources||[];renderSrc();
   if(c){CFG.sourceLimit=c.sourceLimit||0; CFG.activeSource=c.activeSource||'';}
+  paintFO(j);
   const sel=$('srcActive'); if(!sel) return;
   const cur=sel.value||CFG.activeSource||'';
   sel.innerHTML='<option value="">自动（按顺序）</option>';
@@ -786,9 +845,141 @@ async function loadSrc(){
     lim.value=curVal; if(lim.value!==curVal) lim.value='0';
   }
   if($('srcLimitHint')) $('srcLimitHint').textContent='LunaTV 共 '+SRC.length+' 个源，已启用 '+SRC.filter(s=>!s.disabled).length+' 个';
+  if($('srcListInfo')) $('srcListInfo').textContent='LunaTV 共 '+SRC.length+' 个源 · 已启用 '+SRC.filter(s=>!s.disabled).length+' 个 · 已关闭 '+SRC.filter(s=>s.disabled).length+' 个';
   if($('searchAll')) $('searchAll').checked=(j.searchAllSources!==false);
   if($('searchLimit')) $('searchLimit').value=String(j.searchLimit||0);
   paintSearchUI(j);
+}
+
+/* ---------- 备源 / 自动切换 ---------- */
+let FO={backups:[],chain:[],fail:{}}, foDrag=null;
+function foName(k){const s=SRC.find(x=>x.key===k);return s?s.name:k;}
+function foTime(ts){
+  if(!ts) return '';
+  const d=new Date(ts*1000), p=x=>String(x).padStart(2,'0');
+  return (d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function foAgo(ts){
+  const s=Math.max(0,Math.round(Date.now()/1000-ts));
+  if(s<60) return s+' 秒';
+  if(s<3600) return Math.round(s/60)+' 分钟';
+  return Math.round(s/3600)+' 小时';
+}
+function paintFO(j){
+  if(j) FO=j;
+  const list=(FO.backups||[]).slice();
+  const box=$('foList');
+  if(box){
+    box.innerHTML='';
+    if(!list.length){
+      const ch=(FO.chain||[]).filter(k=>k!==(FO.primary||''));
+      const auto=ch.slice(0,4).map(foName).join(' → ');
+      box.innerHTML='<div class="muted">未指定备源 · 自动按片源顺序使用其它启用源'+
+        (auto?'：'+auto+(ch.length>4?' …':'')+'':'')+'</div>';
+    }
+    list.forEach((k,i)=>{
+      const row=document.createElement('div');
+      row.className='srcrow'; row.draggable=true; row.dataset.key=k;
+      const badge=document.createElement('span'); badge.className='fobadge'; badge.textContent=String(i+1);
+      const name=document.createElement('div'); name.className='srcname';
+      const n1=document.createElement('div'); n1.textContent=foName(k);
+      const n2=document.createElement('div'); n2.className='srckey'; n2.textContent=k;
+      name.appendChild(n1); name.appendChild(n2);
+      const grip=document.createElement('span'); grip.className='grip'; grip.textContent='⠿⠿';
+      const rm=document.createElement('button'); rm.className='rm'; rm.textContent='移除';
+      rm.onclick=e=>{e.stopPropagation();FO.backups.splice(i,1);paintFO();};
+      row.appendChild(badge); row.appendChild(name); row.appendChild(grip); row.appendChild(rm);
+      row.addEventListener('dragstart',e=>{foDrag=row;row.classList.add('dragging');
+        e.dataTransfer.effectAllowed='move';
+        try{e.dataTransfer.setData('text/plain',k);}catch(_){}});
+      row.addEventListener('dragend',()=>{
+        row.classList.remove('dragging');
+        document.querySelectorAll('#foList .srcrow.over').forEach(x=>x.classList.remove('over'));
+        if(foDrag){foDrag=null;paintFO();}
+      });
+      row.addEventListener('dragover',e=>{
+        e.preventDefault();
+        if(!foDrag||foDrag===row) return;
+        const rect=row.getBoundingClientRect();
+        const before=(e.clientY-rect.top)<rect.height/2;
+        document.querySelectorAll('#foList .srcrow.over').forEach(x=>x.classList.remove('over'));
+        row.classList.add('over');
+        if(before) box.insertBefore(foDrag,row);
+        else if(row.nextSibling) box.insertBefore(foDrag,row.nextSibling);
+        else box.appendChild(foDrag);
+      });
+      row.addEventListener('drop',e=>e.preventDefault());
+      box.appendChild(row);
+    });
+  }
+  // 下拉候选
+  const sel=$('foPick');
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML='<option value="">选择要加入的备源…</option>';
+    SRC.filter(s=>!s.disabled&&s.key!==(FO.primary||'')&&!list.includes(s.key)).forEach(s=>{
+      const o=document.createElement('option'); o.value=s.key; o.textContent=s.name+' · '+s.key; sel.appendChild(o);
+    });
+    sel.value=(cur&&!list.includes(cur)&&sel.querySelector('option[value="'+cur+'"]'))?cur:'';
+  }
+  // 开关 / 阈值
+  if($('foOn')) $('foOn').checked=(FO.autoFailover!==false);
+  if($('foThresh')) $('foThresh').value=String(FO.failoverThreshold||3);
+  // 状态
+  const act=!!FO.failoverActive;
+  if($('foPillText')) $('foPillText').textContent='当前主源 '+(FO.primary||'—');
+  if($('foPill')) $('foPill').classList.toggle('bad',act);
+  if($('foState')){
+    let t;
+    if(act) t='已自动切到备源 · 配置主源 '+(FO.configuredPrimary||'—')+(FO.failoverSince?'（'+foAgo(FO.failoverSince)+'前切换）':'');
+    else t='配置主源 '+(FO.configuredPrimary||'—')+' 正常';
+    t+=' · 累计切换 '+(FO.failoverSwitches||0)+' 次';
+    const f=(FO.failoverFail||{})[FO.primary||''];
+    if(f&&f.n) t+=' · 当前连续失败 '+f.n+' 次';
+    $('foState').textContent=t;
+  }
+  if($('foCount')&&$('foCount').parentElement){
+    $('foCount').textContent=(FO.failoverSwitches?('· 共 '+FO.failoverSwitches+' 次'):'');
+  }
+  const lg=FO.failoverLog||[];
+  if($('foLog')){
+    $('foLog').innerHTML=lg.length?lg.map(x=>
+      '<div style="padding:5px 0;border-bottom:1px solid var(--line2)">'
+      +'<span style="color:#6f778a">'+foTime(x.ts)+'</span> · '
+      +'<b>'+(x.from||'—')+'</b> → <b>'+(x.to||'—')+'</b> · '+(x.why||'')
+      +'</div>').join(''):'暂无切换记录';
+    $('foLog').style.color='';
+  }
+}
+function addBackup(){
+  const sel=$('foPick'); if(!sel||!sel.value) return;
+  const k=sel.value;
+  FO.backups=(FO.backups||[]).slice();
+  if(!FO.backups.includes(k)) FO.backups.push(k);
+  paintFO(); sel.value='';
+  if($('foInfo')) $('foInfo').textContent='有未保存的改动 · 点「保存并生效」写入';
+}
+async function saveFailover(){
+  const body={autoFailover:$('foOn').checked,
+              failoverThreshold:Math.max(1,Math.min(10,+$('foThresh').value||3)),
+              backupSources:(FO.backups||[]).slice()};
+  const j=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(j.ok){toast('备源设置已保存');if($('foInfo')) $('foInfo').textContent='已保存并生效';loadSrc();loadStatus();}
+  else toast('保存失败：'+(j.error||'未知错误'));
+}
+async function probePrimary(){
+  toast('正在检测主源…');
+  const j=await api('/api/failover/probe',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(!j.ok){toast('检测失败：'+(j.error||''));return;}
+  if(j.switchedBack) toast('原主源 '+(j.switchedBack||'')+' 已恢复 · 已自动切回');
+  else if(j.alive) toast('主源 '+(j.source||'')+' 正常 · '+j.detail+' · '+j.ms+'ms');
+  else toast('主源 '+(j.source||'')+' 异常：'+(j.detail||'无响应'));
+  loadSrc();
+}
+async function resetFailover(){
+  const j=await api('/api/failover/reset',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  if(j.ok){toast('已切回配置主源 '+(j.primary||''));loadSrc();loadStatus();}
+  else toast('操作失败');
 }
 
 /* ---------- 更新设置 ---------- */
