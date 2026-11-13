@@ -1,7 +1,7 @@
 {
-  "exported": "2026-11-13T04:20:03",
+  "exported": "2026-11-14T04:20:03",
   "source": "Kvrocks admin:config",
-  "configSha256": "1b3207be3c06144e",
+  "configSha256": "da6934af6395d63f",
   "sources": 70,
   "sourceKeys": [
     "agg",
