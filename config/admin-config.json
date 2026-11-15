@@ -3,7 +3,7 @@
   "ConfigSubscribtion": {
     "URL": "https://pz.v88.qzz.io?format=2&source=full",
     "AutoUpdate": true,
-    "LastCheck": "2026-11-14T19:47:23.055Z"
+    "LastCheck": "2026-11-15T19:27:24.130Z"
   },
   "SiteConfig": {
     "SiteName": "LunaTV (DaoTV 增强版)",
@@ -19,7 +19,7 @@
     "BangumiImageProxyType": "cmliussss",
     "BangumiImageProxy": "",
     "DisableYellowFilter": true,
-    "ShowAdultContent": true,
+    "ShowAdultContent": false,
     "FluidSearch": true,
     "EnableWebLive": false,
     "TMDBApiKey": "<SECRET>",
@@ -52,7 +52,7 @@
       "api": "https://caiji.dbzy5.com/api.php/provide/vod",
       "detail": "https://dbzy.tv",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod"
     },
     {
@@ -61,7 +61,7 @@
       "api": "https://caiji.maotaizy.cc/api.php/provide/vod",
       "detail": "https://mtzy.me",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod"
     },
     {
@@ -187,7 +187,7 @@
       "api": "https://api.wwzy.tv/api.php/provide/vod",
       "detail": "https://api.wwzy.tv",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod",
       "weight": 10,
       "is_adult": false
@@ -216,7 +216,7 @@
       "api": "https://p2100.net/api.php/provide/vod",
       "detail": "https://p2100.net",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod"
     },
     {
@@ -325,7 +325,7 @@
       "api": "https://wwzy.tv/api.php/provide/vod",
       "detail": "https://wwzy.tv",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod",
       "weight": 10
     },
@@ -608,7 +608,7 @@
       "api": "https://www.xxibaozyw.com/api.php/provide/vod",
       "detail": "https://www.xxibaozyw.com",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod",
       "is_adult": true
     },
@@ -618,7 +618,7 @@
       "api": "https://www.xiangjiaozyw.com/api.php/provide/vod",
       "detail": "https://www.xiangjiaozyw.com",
       "from": "config",
-      "disabled": false,
+      "disabled": true,
       "type": "vod",
       "is_adult": true
     },
@@ -704,19 +704,7 @@
     }
   ],
   "CustomCategories": [],
-  "LiveConfig": [
-    {
-      "key": "IPTV",
-      "name": "iptv",
-      "url": "http://192.168.3.100:1905/interface.m3u",
-      "ua": "",
-      "epg": "",
-      "isTvBox": false,
-      "from": "custom",
-      "channelNumber": 483,
-      "disabled": false
-    }
-  ],
+  "LiveConfig": [],
   "TVBoxProxyConfig": {
     "enabled": false,
     "proxyUrl": "https://corsapi.smone.workers.dev"

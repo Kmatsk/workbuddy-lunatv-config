@@ -7,7 +7,7 @@
 :root{--bg:#0f1115;--card:#171a21;--line:#242836;--line2:#20242f;--txt:#e6e8ee;--muted:#8b93a7;--blue:#2b6cff;--green:#3ddc84;--red:#ff6b6b}
 body{background:var(--bg);color:var(--txt);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
 .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
-aside{background:#12151c;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;gap:4px;position:sticky;top:0;height:100vh}
+aside{background:#12151c;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px;gap:4px;position:sticky;top:0;height:100vh;min-width:0}
 .brand{display:flex;align-items:center;gap:9px;padding:4px 10px 18px}
 .brand b{font-size:15px;font-weight:600;letter-spacing:.3px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);flex:0 0 8px}
@@ -18,7 +18,7 @@ aside{background:#12151c;border-right:1px solid var(--line);display:flex;flex-di
 .nav button.on{background:#1d2432;color:#fff;border-left-color:var(--blue)}
 .nav svg{width:16px;height:16px;opacity:.85;flex:0 0 16px}
 .sidefoot{margin-top:auto;padding:12px 10px;color:#5f6678;font-size:11.5px;line-height:1.7}
-main{padding:26px 30px 60px;max-width:1080px;width:100%}
+main{padding:26px 30px 60px;max-width:1080px;width:100%;min-width:0}
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap}
 .top h1{font-size:20px;font-weight:600}
 .top .sub{color:var(--muted);font-size:12.5px;margin-top:4px}
@@ -141,19 +141,73 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
 .logo-preview img{max-width:100%;max-height:100%;object-fit:contain}
 .logo-preview .empty{color:#5f6678;font-size:12.5px}
 .rowbtns{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+/* 实例标识 / 端口切换 */
+.pill.inst{background:#182031;border-color:#2a3c5e;color:#8fb6ff;font-weight:500}
+.pill.link{background:#20242f;border-color:#2c3142;color:#c9d0df;cursor:pointer;text-decoration:none}
+.pill.link:hover{background:#2a3040;color:#fff}
+/* TVBOX 下发模式卡片 */
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:4px}
+.mode{display:block;background:#12151c;border:1px solid #262b38;border-radius:11px;padding:12px 14px;cursor:pointer;transition:.15s}
+.mode:hover{border-color:#3a4256}
+.mode.on{border-color:var(--blue);background:#16203a}
+.mode b{display:block;font-size:13.5px;margin-bottom:4px;font-weight:600}
+.mode span{font-size:11.8px;color:var(--muted);line-height:1.6;display:block}
+.mode input{display:none}
+/* 管理接口清单 */
+.apilist{margin-top:12px;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.apirow{display:grid;grid-template-columns:74px 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line2);font-size:12px;align-items:baseline}
+.apirow:last-child{border-bottom:0}
+.apirow .m{font-family:ui-monospace,monospace;font-size:11px;color:#8fb6ff}
+.apirow .p{font-family:ui-monospace,monospace;color:#7ee2b8;word-break:break-all}
+.apirow .d{grid-column:1/-1;color:var(--muted);font-size:11.5px;margin-top:-2px;line-height:1.6}
+.scrollx{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* 下发预览列表 */
+.tvlist{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.tvitem{display:flex;align-items:center;gap:10px;background:#12151c;border:1px solid var(--line2);border-radius:9px;padding:8px 12px;font-size:12.5px}
+.tvitem .idx{flex:0 0 22px;color:#6f778a;font-family:ui-monospace,monospace;font-size:11px}
+.tvitem .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tvitem .ap{color:var(--muted);font-size:11px;font-family:ui-monospace,monospace;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tvitem.agg{border-color:#2a3c5e;background:#151d2c}
 .toast{position:fixed;right:22px;bottom:22px;background:#12151c;border:1px solid var(--blue);color:#dbe4ff;
  border-radius:10px;padding:10px 16px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
 .toast.show{opacity:1}
+@media(min-width:761px) and (max-width:1100px){
+ main{max-width:100%;padding:22px 20px 48px}
+}
 @media(max-width:760px){
  .app{grid-template-columns:1fr}
- aside{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:10px;gap:6px;z-index:5;border-right:0;border-bottom:1px solid var(--line)}
- .brand{padding:0 8px 0 4px}.brand b{display:none}
+ aside{position:sticky;top:0;height:auto;flex-direction:row;align-items:center;overflow-x:auto;padding:9px 10px;gap:6px;z-index:5;border-right:0;border-bottom:1px solid var(--line);scrollbar-width:none}
+ aside::-webkit-scrollbar{display:none}
+ .brand{padding:0 6px 0 2px}.brand b{display:none}
  .nav{flex-direction:row}
- .nav button{white-space:nowrap;border-left:0;border-bottom:2px solid transparent;border-radius:8px;padding:7px 11px}
+ .nav button{white-space:nowrap;border-left:0;border-bottom:2px solid transparent;border-radius:8px;padding:7px 10px;font-size:12.5px;width:auto}
  .nav button.on{border-bottom-color:var(--blue)}
  .nav svg{display:none}
  .sidefoot{display:none}
- main{padding:18px 14px 40px}
+ main{padding:16px 12px 56px}
+ .top{gap:8px;margin-bottom:14px;align-items:flex-start}
+ .top h1{font-size:18px}
+ .top .sub{font-size:12px;line-height:1.65}
+ .top .pill{font-size:11px;padding:4px 9px}
+ .card{padding:14px 13px;border-radius:12px}
+ .card h2{font-size:13px;flex-wrap:wrap;gap:4px}
+ .grid{grid-template-columns:repeat(auto-fit,minmax(122px,1fr));gap:9px}
+ .stat{padding:11px 12px}
+ .stat .n{font-size:19px}
+ .field{flex-wrap:wrap;gap:7px;padding:11px 0}
+ .field .ctl{width:100%;flex-wrap:wrap}
+ .sel,input[type=text],input[type=number]{width:100%;min-width:0}
+ .num{width:100%}
+ .modes{grid-template-columns:1fr}
+ .urlbox{padding:9px 11px}
+ .urlbox code{font-size:11.5px;flex:1 1 100%}
+ .rowbtns{gap:8px}
+ .rowbtns button{flex:1 1 auto}
+ .devtbl{min-width:780px}
+ .cachetbl{min-width:660px}
+ .apirow{grid-template-columns:56px 1fr;gap:6px}
+ .tvitem .ap{display:none}
+ .toast{left:12px;right:12px;bottom:12px;text-align:center}
 }
 </style></head><body>
 <div class="app">
@@ -163,6 +217,7 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
     <button data-p="overview" class="on">概览</button>
     <button data-p="words">屏蔽词</button>
     <button data-p="sources">片源管理</button>
+    <button data-p="tvbox">TVBOX 下发</button>
     <button data-p="srclist">片源列表</button>
     <button data-p="srcstat">源检测</button>
     <button data-p="agg">采集源</button>
@@ -173,7 +228,7 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
     <button data-p="cache">缓存管理</button>
     <button data-p="logo">LOGO 设置</button>
   </nav>
-  <div class="sidefoot">端口 3032 · 局域网管理<br><span id="version">v2.5</span></div>
+  <div class="sidefoot">端口 <b id="ftPort">—</b> · <span id="ftName">局域网管理</span><br><span id="version">v2.5</span></div>
 </aside>
 
 <main>
@@ -182,7 +237,11 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
       <h1 id="pageTitle">概览</h1>
       <div class="sub" id="pageSub">加载中…</div>
     </div>
-    <div class="pill"><span class="dot"></span><span id="pillText">运行中</span></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="pill inst" id="instPill" title="当前管理的是哪个端口 / 哪个实例"><span class="dot"></span><span id="instText">:— 连接中</span></span>
+      <a class="pill link" id="sibLink" href="#" style="display:none">另一个实例</a>
+      <span class="pill"><span class="dot"></span><span id="pillText">运行中</span></span>
+    </div>
   </div>
 
   <!-- 概览 -->
@@ -425,6 +484,71 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
         <button class="ghost" onclick="loadSrc()">还原</button>
         <span class="muted" id="searchInfo">0 = 全部额外源；N = 最多并入 N 个真正有结果的额外源（没有该片源的源不占名额）</span>
       </div>
+    </div>
+  </section>
+
+  <!-- TVBOX 下发 -->
+  <section class="pane" id="pane-tvbox">
+    <div class="card">
+      <h2>下发模式 <small>决定机顶盒拉到的订阅里有哪些站点 · 3032 / 3035 各自独立保存</small></h2>
+      <div class="modes" id="modeBox">
+        <label class="mode" data-m="all">
+          <input type="radio" name="tvmode" value="all">
+          <b>全部启用源</b>
+          <span>沿用「片源管理」里的下发数量 / 指定源；聚合源按下面的开关决定是否附带</span>
+        </label>
+        <label class="mode" data-m="agg">
+          <input type="radio" name="tvmode" value="agg">
+          <b>只加载聚合源</b>
+          <span>订阅里只有「🧩 聚合源」，一个站点装下全部片库，App 启动最快、翻页最稳</span>
+        </label>
+        <label class="mode" data-m="agg_n">
+          <input type="radio" name="tvmode" value="agg_n">
+          <b>聚合源 + N 个源</b>
+          <span>聚合源排第一，后面再带 N 个普通源（按当前下发顺序取前 N 个），适合想留几个备用站点</span>
+        </label>
+      </div>
+      <div class="field">
+        <div><div class="t">N = 附带几个普通源</div><div class="d">只在「聚合源 + N 个源」模式下生效（1 ~ 50）；已停用 / 被健康检测摘掉的源不占名额</div></div>
+        <div class="ctl"><input class="sel" id="tvExtra" type="number" min="1" max="50" step="1" value="5" style="width:110px"></div>
+      </div>
+      <div class="field">
+        <div><div class="t">下发聚合源</div><div class="d">「全部启用源」模式下是否附带聚合源；选上面两种聚合模式时强制带上（前提是「采集源」页已启用）</div></div>
+        <div class="ctl"><label class="switch"><input type="checkbox" id="tvAgg"><i></i></label></div>
+      </div>
+      <div class="muted" id="tvWarn" style="display:none;margin-top:8px;color:#ffb020;line-height:1.8">
+        聚合采集源当前是关闭状态，聚合模式会自动回退成「全部启用源」，避免机顶盒拿到一份空配置。想用聚合模式请先到「采集源」页打开开关。
+      </div>
+      <div class="rowbtns">
+        <button onclick="saveTvbox()">保存并生效</button>
+        <button class="ghost" onclick="loadTvbox()">还原</button>
+        <span class="muted" id="tvInfo">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>下发预览 <small>这里看到的就是机顶盒刷新配置后拿到的站点列表</small></h2>
+      <div class="statrow" style="margin-top:0">
+        <span class="pill" id="tvPill"><span class="dot"></span><span id="tvPillText">—</span></span>
+        <span class="muted" id="tvCount">—</span>
+      </div>
+      <div class="tvlist" id="tvList"></div>
+      <div class="urlbox" style="margin-top:14px">
+        <code id="tvSub">—</code>
+        <button class="ghost" onclick="copyTv('sub')">复制订阅地址</button>
+      </div>
+      <div class="muted" style="margin-top:8px">TVBox / FongMi / 影视：「配置地址」填上面这条；LunaTV / 飞牛影视这类走源池的，仍然用 <code id="tvAggUrl">—</code> 当普通源。</div>
+    </div>
+
+    <div class="card">
+      <h2>独立管理接口 <small>每个端口一套，只读写本端口的配置与缓存</small></h2>
+      <div class="urlbox">
+        <code id="tvAdmin">—</code>
+        <button class="ghost" onclick="copyTv('admin')">复制管理页</button>
+        <a class="pill link" id="tvSib" href="#" style="display:none">打开另一实例</a>
+      </div>
+      <div class="muted" style="margin-top:10px">接口根地址 <code id="apiBase">—</code>；完整清单可以直接浏览器打开 <code id="apiDoc">—</code>，返回 JSON。手机上把这个地址加到主屏幕即可当 App 用。</div>
+      <div class="apilist" id="apiList"><div class="apirow"><div class="m">—</div><div class="p">加载中…</div></div></div>
     </div>
   </section>
 
@@ -877,6 +1001,7 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
         <button class="ghost" onclick="runHousekeep()">立即清理过期</button>
         <span class="muted" id="hkInfo">—</span>
       </div>
+      <div class="scrollx">
       <table class="devtbl cachetbl">
         <thead><tr>
           <th style="width:172px">缓存项</th>
@@ -888,6 +1013,7 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
         </tr></thead>
         <tbody id="cacheBody"><tr><td colspan="6" class="muted">加载中…</td></tr></tbody>
       </table>
+      </div>
       <div class="rowbtns">
         <button class="ghost" onclick="loadCache()">刷新</button>
         <button class="ghost" onclick="clearCache('all')">清理全部缓存</button>
@@ -927,6 +1053,7 @@ let CFG={categories:[],titles:[]}, SRC=[], LOGO_TS=0, ADULT=false;
 let ASORT={on:false,mode:'avg',min:2,scope:'all',failLast:true};
 const TITLES={overview:['概览','运行状态与机顶盒订阅地址'],words:['屏蔽词','分类与标题双层过滤'],
   sources:['片源管理','加载模式 / 备源切换 / 搜索范围'],
+  tvbox:['TVBOX 下发','只加载聚合源 / 聚合源 + N 源 · 独立开关与设置'],
   srclist:['片源列表','启用状态与分类栏顺序'],
   srcstat:['源检测','存活检测 · 阈值自动停用 · 恢复自动启用'],search:['搜索统计','机顶盒搜索关键词按次数排行'],
   agg:['采集源','自建聚合采集源 · 一个接口装下全部片库'],
@@ -946,6 +1073,7 @@ $('nav').addEventListener('click',e=>{
   $('pageTitle').textContent=TITLES[b.dataset.p][0];
   $('pageSub').textContent=TITLES[b.dataset.p][1];
   if(b.dataset.p==='sources'||b.dataset.p==='srclist') loadSrc();
+  if(b.dataset.p==='tvbox') loadTvbox();
   if(b.dataset.p==='overview') loadStatus();
   if(b.dataset.p==='srcstat') loadSrcStat();
   if(b.dataset.p==='search') loadSearchStats();
@@ -992,7 +1120,7 @@ async function loadStatus(){
   }
   $('s-img').textContent=(st.imgMB??0);
   ADULT=!!st.adultMode; applyAdultMode();
-  if($('version')) $('version').textContent='v2.6';
+  if($('version')) $('version').textContent=(INST&&INST.version)||st.version||'v2.7';
   $('pillText').textContent='运行中 · '+(st.sourcesEnabled??st.sources)+'/'+st.sources+' 源启用';
   const off=[];
   if(st.filterOn===false) off.push('屏蔽已关闭');
@@ -2179,13 +2307,113 @@ function allCats(on){
   renderCats();
 }
 
+/* ---------- 实例 & 独立管理接口 ---------- */
+let INST=null, TVMODE='all';
+function modeName(m){return m==='agg'?'只加载聚合源':(m==='agg_n'?'聚合源 + N 个源':'全部启用源');}
+async function loadInstance(){
+  const j=await api('/api/instance'); if(!j||!j.ok) return;
+  INST=j;
+  if($('instText')) $('instText').textContent=':'+j.port+' · '+j.name;
+  if($('instPill')) $('instPill').title='当前管理端口 '+j.port+'（'+j.name+'）· 配置 '+j.config+' · 缓存 '+j.cache;
+  if($('ftPort')) $('ftPort').textContent=j.port;
+  if($('ftName')) $('ftName').textContent=j.name;
+  if($('version')) $('version').textContent=j.version;
+  document.title='TVBox 网关 · :'+j.port+' '+j.name;
+  const sib=(j.siblings||[])[0]||null;
+  [['sibLink','切换到 '],['tvSib','打开 ']].forEach(([id,txt])=>{
+    const el=$(id); if(!el) return;
+    if(sib){el.href=sib.url; el.textContent=txt+':'+sib.port; el.style.display='';}
+    else el.style.display='none';
+  });
+  if($('tvAdmin')) $('tvAdmin').textContent=j.admin;
+  if($('tvSub')) $('tvSub').textContent=j.sub;
+  if($('tvAggUrl')) $('tvAggUrl').textContent=j.agg;
+  if($('apiBase')) $('apiBase').textContent=j.api;
+  if($('apiDoc')) $('apiDoc').textContent=j.api;
+  loadApiList();
+}
+async function loadApiList(){
+  const j=await api('/api'); if(!j||!j.endpoints) return;
+  const box=$('apiList'); if(!box) return; box.innerHTML='';
+  j.endpoints.forEach(e=>{
+    const d=document.createElement('div'); d.className='apirow';
+    const m=document.createElement('div'); m.className='m'; m.textContent=e.method;
+    const p=document.createElement('div'); p.className='p'; p.textContent=e.path;
+    const s=document.createElement('div'); s.className='d'; s.textContent=e.desc;
+    d.appendChild(m); d.appendChild(p); d.appendChild(s); box.appendChild(d);
+  });
+}
+function copyTv(kind){
+  const el=$(kind==='sub'?'tvSub':'tvAdmin'); if(!el) return;
+  const t=el.textContent.trim();
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('已复制：'+t)).catch(()=>toast(t));
+}
+
+/* ---------- TVBOX 下发 ---------- */
+function applyTvModeUI(m){
+  TVMODE=m;
+  document.querySelectorAll('#modeBox .mode').forEach(el=>el.classList.toggle('on',el.dataset.m===m));
+  document.querySelectorAll('input[name=tvmode]').forEach(r=>{r.checked=r.value===m;});
+  if($('tvExtra')){$('tvExtra').disabled=(m!=='agg_n');$('tvExtra').style.opacity=(m==='agg_n'?'1':'.45');}
+}
+async function loadTvbox(){
+  const j=await api('/api/tvbox/preview');
+  if(!j||!j.ok){if($('tvInfo')) $('tvInfo').textContent='读取失败，稍后重试';return;}
+  applyTvModeUI(j.mode||'all');
+  if($('tvExtra')) $('tvExtra').value=j.extra||5;
+  if($('tvAgg')) $('tvAgg').checked=!!j.inTvbox;
+  if($('tvWarn')){
+    if(j.pending){
+      $('tvWarn').style.display='';
+      $('tvWarn').textContent='聚合分类树还在构建（首次启动约十几秒），这段时间订阅先按普通源下发，建好后自动切回聚合模式。';
+    }else if(j.modeEff!==j.mode){
+      $('tvWarn').style.display='';
+      $('tvWarn').textContent='聚合采集源当前是关闭状态，聚合模式会自动回退成「全部启用源」，避免机顶盒拿到一份空配置。想用聚合模式请先到「采集源」页打开开关。';
+    }else $('tvWarn').style.display='none';
+  }
+  paintTvPreview(j);
+  if($('tvInfo')) $('tvInfo').textContent='当前生效：'+modeName(j.modeEff)+(j.aggUsed?' · 含聚合源':' · 不含聚合源');
+}
+function paintTvPreview(j){
+  if($('tvPillText')) $('tvPillText').textContent=modeName(j.modeEff);
+  if($('tvCount')) $('tvCount').textContent='订阅里共 '+j.count+' 个站点'+(j.aggUsed?'（含 🧩 聚合源）':'');
+  const box=$('tvList'); if(!box) return; box.innerHTML='';
+  if(!j.sites||!j.sites.length){
+    box.innerHTML='<div class="muted" style="padding:6px 2px">当前没有可下发的站点：检查「采集源」是否启用、片源是否全部停用</div>';
+    return;
+  }
+  j.sites.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='tvitem'+(s.key==='__agg__'?' agg':'');
+    const a=document.createElement('span'); a.className='idx'; a.textContent=i+1;
+    const n=document.createElement('span'); n.className='nm'; n.textContent=s.name;
+    const u=document.createElement('span'); u.className='ap'; u.textContent=s.api;
+    d.appendChild(a); d.appendChild(n); d.appendChild(u); box.appendChild(d);
+  });
+}
+async function saveTvbox(){
+  const m=(document.querySelector('input[name=tvmode]:checked')||{}).value||'all';
+  const extra=parseInt($('tvExtra').value,10)||5;
+  if(extra<1||extra>50){toast('N 要在 1 ~ 50 之间');return;}
+  const j=await api('/api/tvbox/mode',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode:m,extraSources:extra,aggInTvbox:$('tvAgg').checked})});
+  if(j&&j.ok){toast('已保存：'+modeName(j.modeEff)+' · '+j.count+' 个站点');loadTvbox();loadStatus();}
+  else toast('保存失败：'+((j&&j.error)||'未知错误'));
+}
+document.querySelectorAll('#modeBox .mode').forEach(el=>{
+  el.addEventListener('click',()=>{
+    applyTvModeUI(el.dataset.m);
+    if($('tvInfo')) $('tvInfo').textContent='有未保存的改动 · 点「保存并生效」后机顶盒刷新配置即生效';
+  });
+});
+
 /* ---------- 订阅地址 ---------- */
 function copySub(){
   const t=$('suburl').textContent;
   navigator.clipboard.writeText(t).then(()=>toast('订阅地址已复制')).catch(()=>toast(t));
 }
 
-loadStatus(); loadWords().then(()=>{loadSrc();}); loadUpdate(); loadLogo();
+loadInstance(); loadStatus(); loadWords().then(()=>{loadSrc();}); loadUpdate(); loadLogo();
 // 概览不再定时自动刷新：默认只加载一次，需要时手动打开「自动刷新」（状态不落盘，关页面即失效）
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden) return;

@@ -178,6 +178,8 @@
   "aggBrowseSources": 8,
   "aggSearchSources": 0,
   "aggInTvbox": true,
+  "tvboxMode": "agg",
+  "tvboxExtraSources": 5,
   "aggTvSubs": true,
   "aggCatOff": [
     "电影",

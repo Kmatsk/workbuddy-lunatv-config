@@ -18,6 +18,7 @@ LUNA = os.environ.get("LUNA_BASE", "http://192.168.3.100:3030")
 SELF = os.environ.get("SELF_BASE", "http://192.168.3.100:3032")
 LISTEN_PORT = int(os.environ.get("GUARD_PORT", "3032"))
 CONFIG_PATH = os.environ.get("GUARD_CONFIG", "/app/config.json")
+ADMIN_VER = "v2.7"
 START_TS = time.time()
 try:
     SELF_HOST = (urllib.parse.urlsplit(SELF).hostname or "").strip()
@@ -48,6 +49,8 @@ _f = {"cats": list(DEFAULT_CATS), "titles": list(DEFAULT_TITLES),
       "cats_on": True, "titles_on": True, "filter_on": True,
       "search_all": True, "search_limit": 0,
       "agg_on": True, "agg_browse": 8, "agg_search": 0, "agg_tvbox": False, "agg_tvsub": False,
+      # TVBOX 下发模式：all=全部普通源（旧行为）/ agg=只下发聚合源 / agg_n=聚合源+前 N 个普通源
+      "tvbox_mode": "all", "tvbox_extra": 5,
       "agg_cat_off": set(), "agg_cat_order": [],
       "agg_home": "", "agg_page": 20, "agg_top_pg": 1, "agg_sub_pg": 1, "agg_sub_src": 12,
       "agg_fill": True, "agg_fill_max": 20,
@@ -758,6 +761,9 @@ def apply_config(c):
     _f["agg_browse"] = max(1, min(20, int(c.get("aggBrowseSources") or 8)))
     _f["agg_search"] = max(0, min(50, int(c.get("aggSearchSources") or 0)))
     _f["agg_tvbox"] = bool(c.get("aggInTvbox", False))
+    _tm = str(c.get("tvboxMode") or "all").strip().lower()
+    _f["tvbox_mode"] = _tm if _tm in ("all", "agg", "agg_n") else "all"
+    _f["tvbox_extra"] = max(1, min(50, int(c.get("tvboxExtraSources") or 5)))
     _f["agg_tvsub"] = bool(c.get("aggTvSubs", False))
     _f["agg_cat_off"] = {str(x).strip() for x in (c.get("aggCatOff") or []) if str(x).strip()}
     _f["agg_cat_order"] = [str(x).strip() for x in (c.get("aggCatOrder") or []) if str(x).strip()]
@@ -870,6 +876,10 @@ def save_config(c):
         "aggBrowseSources": max(1, min(20, int(pick("aggBrowseSources", 8) or 8))),
         "aggSearchSources": max(0, min(50, int(pick("aggSearchSources", 0) or 0))),
         "aggInTvbox": bool(pick("aggInTvbox", False)),
+        "tvboxMode": (str(pick("tvboxMode", "all") or "all").strip().lower()
+                      if str(pick("tvboxMode", "all") or "all").strip().lower() in ("all", "agg", "agg_n")
+                      else "all"),
+        "tvboxExtraSources": max(1, min(50, int(pick("tvboxExtraSources", 5) or 5))),
         "aggTvSubs": bool(pick("aggTvSubs", False)),
         "aggCatOff": [str(x).strip() for x in pick("aggCatOff", []) or [] if str(x).strip()],
         "aggCatOrder": [str(x).strip() for x in pick("aggCatOrder", []) or [] if str(x).strip()],
@@ -2359,7 +2369,41 @@ def warm_images(keys, ncat=6):
             print("[img] warm %s failed: %s" % (k, e), flush=True)
 
 
-SEP = "~"                      # 聚合结果里的来源标记：<key>~<上游 id>
+SEP = "~"                       # 聚合结果里的来源标记（内部格式）：<key>~<上游 id>
+SEP_OLD2 = "__"                 # 过渡分隔符：曾短暂上线，解析时仍兼容
+
+
+def id_split(s):
+    """拆出来源前缀（明文格式）：<key>~<vid> 或 <key>__<vid> -> (key, vid)"""
+    s = str(s or "")
+    for sep in (SEP, SEP_OLD2):
+        if sep in s:
+            k, vid = s.split(sep, 1)
+            return k, vid
+    return "", s
+
+
+def _agg_id_pack(k, vid):
+    """对外 id：整体 Base64url 编码成 [A-Za-z0-9_-]。
+    LunaTV /api/detail 用正则校验 id（只认字母数字下划线连字符），域名里的点、~ 都过不了，必须编码。"""
+    raw = str(k) + SEP + str(vid)
+    return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii").rstrip("=")
+
+
+def _agg_id_unpack(s):
+    """对外 id -> (key, vid)。兼容 b64 编码、旧版明文 <key>~<id>、过渡 <key>__<id>"""
+    s = str(s or "")
+    if SEP in s or SEP_OLD2 in s:       # 明文旧格式（含域名点或 ~ / __）
+        return id_split(s)
+    if "." in s:                        # 带点的直接按整体 id 处理
+        return "", s
+    try:
+        raw = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4)).decode("utf-8", "ignore")
+        if SEP in raw or SEP_OLD2 in raw:
+            return id_split(raw)
+    except Exception:
+        pass
+    return "", s
 _search_cache = {}             # query -> (ts, payload)
 _search_lock = threading.Lock()
 SEARCH_TTL = 150
@@ -2414,6 +2458,128 @@ def pick_delivered(keys):
     if lim > 0:
         return keys[:lim]
     return list(keys)
+
+
+def tvbox_mode_eff():
+    """当前生效的 TVBOX 下发模式：聚合源被关闭时 agg / agg_n 自动回退 all"""
+    mode = str(_f.get("tvbox_mode") or "all")
+    if mode not in ("all", "agg", "agg_n"):
+        mode = "all"
+    if mode in ("agg", "agg_n") and not _f.get("agg_on", True):
+        return "all"
+    return mode
+
+
+def tvbox_delivered_keys(keys=None):
+    """按 TVBOX 下发模式算出最终下发的普通源（与 handle_tvbox 保持一致）"""
+    base = pick_delivered(list(keys) if keys is not None else ordered_source_keys("deliver"))
+    mode = tvbox_mode_eff()
+    if mode == "agg":
+        return []
+    if mode == "agg_n":
+        return base[:int(_f.get("tvbox_extra") or 5)]
+    return base
+
+
+def tvbox_preview():
+    """管理页预览：订阅里最终会出现哪些站点（不真的去 LunaTV 拉配置）"""
+    srcs = sources_cached()
+    mode = tvbox_mode_eff()
+    pending = False
+    if mode in ("agg", "agg_n") and not _agg["cats"]:
+        # 聚合分类树还没建好：与 handle_tvbox 一致，本次先按普通源下发
+        pending = True
+        if mode == "agg":
+            mode = "all"
+    keys = pick_delivered(ordered_source_keys("deliver"))
+    if mode == "agg":
+        keys = []
+    elif mode == "agg_n":
+        keys = keys[:int(_f.get("tvbox_extra") or 5)]
+    sites = [{"key": k, "name": (srcs.get(k) or {}).get("name") or k,
+              "api": SELF + "/cms/" + k} for k in keys]
+    agg_on = bool(_f.get("agg_on", True))
+    agg_used = agg_on and not pending and (mode in ("agg", "agg_n") or bool(_f.get("agg_tvbox")))
+    if agg_used:
+        sites.insert(0, {"key": "__agg__", "name": "🧩 聚合源", "api": SELF + "/agg"})
+    return {"ok": True, "port": LISTEN_PORT, "mode": str(_f.get("tvbox_mode") or "all"),
+            "modeEff": mode, "pending": pending,
+            "extra": int(_f.get("tvbox_extra") or 5),
+            "aggOn": agg_on, "aggUsed": agg_used, "inTvbox": bool(_f.get("agg_tvbox")),
+            "count": len(sites), "sites": sites,
+            "sub": SELF + "/api/tvbox", "admin": SELF + "/"}
+
+
+def sibling_ports():
+    """同一个容器里并行跑的其它实例端口（默认 3032 / 3035）"""
+    host = urllib.parse.urlparse(SELF).hostname or "127.0.0.1"
+    raw = os.environ.get("GUARD_PORTS") or "3032,3035"
+    out = []
+    for x in raw.split(","):
+        x = x.strip()
+        if not x.isdigit():
+            continue
+        p = int(x)
+        if p == LISTEN_PORT:
+            continue
+        out.append({"port": p, "url": "http://%s:%d/" % (host, p),
+                    "name": "全分类实例" if p == 3035 else "屏蔽过滤实例"})
+    return out
+
+
+def instance_info():
+    return {"ok": True, "port": LISTEN_PORT, "version": ADMIN_VER,
+            "open": bool(OPEN_MODE),
+            "name": "全分类实例" if OPEN_MODE else "屏蔽过滤实例",
+            "desc": ("不屏蔽任何分类与标题，聚合源保留全部大分类与细分类" if OPEN_MODE
+                     else "分类 / 标题屏蔽生效，聚合源按屏蔽词过滤"),
+            "config": CONFIG_PATH, "cache": CACHE_DIR,
+            "base": SELF, "admin": SELF + "/", "api": SELF + "/api",
+            "sub": SELF + "/api/tvbox", "agg": SELF + "/agg",
+            "tvboxMode": str(_f.get("tvbox_mode") or "all"), "tvboxModeEff": tvbox_mode_eff(),
+            "tvboxExtra": int(_f.get("tvbox_extra") or 5),
+            "aggOn": bool(_f.get("agg_on", True)), "inTvbox": bool(_f.get("agg_tvbox")),
+            "filterOn": bool(_f.get("filter_on", True)),
+            "sources": len(sources_cached()),
+            "sourcesEnabled": len([k for k in sources_cached() if not src_off(k)]),
+            "delivered": len(tvbox_delivered_keys()),
+            "siblings": sibling_ports()}
+
+
+API_INDEX = [
+    ("GET", "/api/instance", "实例信息：端口 / 模式 / 配置与缓存路径 / 订阅与聚合地址 / 同容器其它实例"),
+    ("GET", "/api/status", "运行状态、源数量、拦截统计、设备与流量"),
+    ("GET", "/api/health", "存活检查（/health 为简版）"),
+    ("GET", "/api/settings", "读取更新设置"),
+    ("POST", "/api/settings", "保存更新设置（同步间隔 / 备份 / 缓存容量 / 在线判定等）"),
+    ("GET", "/api/config", "读取屏蔽词、片源开关、TVBOX 下发模式"),
+    ("POST", "/api/config", "保存配置（词库 / disabledSources / sourceOrder / sourceLimit / tvboxMode / tvboxExtraSources）"),
+    ("GET", "/api/sources", "片源列表：启用状态、下发顺序、响应时间"),
+    ("GET", "/api/tvbox", "机顶盒订阅配置（App 直接拉；同一份 JSON）"),
+    ("GET", "/api/tvbox/preview", "预览订阅里最终出现的站点（模式 / 数量 / 聚合源）"),
+    ("POST", "/api/tvbox/mode", "只改 TVBOX 下发模式：{mode: all|agg|agg_n, extraSources: N, aggInTvbox: bool}"),
+    ("GET", "/api/devices", "在线设备与每台设备的实时 / 今日 / 本月 / 累计流量"),
+    ("GET", "/api/cache", "缓存清单（各项大小、上限、保留天数）"),
+    ("POST", "/api/cache/clear", "清某一项缓存 {target} 或多项 {targets: []}"),
+    ("POST", "/api/cache/clean", "立即执行一次过期清理"),
+    ("POST", "/api/traffic/reset", "清零流量（今日 / 本月 / 累计 + 各设备）"),
+    ("POST", "/api/stats/reset", "清零拦截统计与 TMDB 计数"),
+    ("POST", "/api/devices/reset", "清零设备列表与请求次数"),
+    ("GET", "/api/agg", "聚合采集源状态"),
+    ("GET", "/api/agg/collect", "采集调度状态"),
+    ("POST", "/api/agg/collect", "采集调度操作 {action: run|clear|save|...}"),
+    ("GET", "/api/search_stats", "搜索关键词统计"),
+    ("GET", "/agg", "聚合采集源（苹果 CMS 标准接口，LunaTV / 飞牛影视 / TVBox 当普通源用）"),
+    ("GET", "/cms/<key>", "单个片源的过滤中转（机顶盒实际请求的就是这个）"),
+]
+
+
+def api_index():
+    host = urllib.parse.urlparse(SELF).hostname or "127.0.0.1"
+    return {"ok": True, "port": LISTEN_PORT, "base": "http://%s:%d" % (host, LISTEN_PORT),
+            "name": "全分类实例" if OPEN_MODE else "屏蔽过滤实例",
+            "note": "每个端口一套独立接口，只读写本端口的 config / cache，互不影响",
+            "endpoints": [{"method": m, "path": p, "desc": d} for m, p, d in API_INDEX]}
 
 
 def search_primary():
@@ -2768,7 +2934,7 @@ def merge_search(base_key, query, targets=None, limit=None, min_targets=2, cap=8
             if len(items) >= cap:      # 结果太多反而难翻，够用就行
                 break
             seen[nm] = seen.get(nm, 0) + 1
-            v["vod_id"] = str(k) + SEP + str(v.get("vod_id"))
+            v["vod_id"] = _agg_id_pack(k, v.get("vod_id"))
             proxify_item(v, (srcs.get(k) or {}).get("api") or "")
             items.append(v)
             hit += 1
@@ -2797,10 +2963,7 @@ def merge_detail(query, ids_raw, timeout=25):
         token = token.strip()
         if not token:
             continue
-        if SEP in token:
-            k, vid = token.split(SEP, 1)
-        else:
-            k, vid = "", token
+        k, vid = _agg_id_unpack(token)
         if not k:
             continue
         if src_off(k):          # 停用源不再提供详情（历史收藏点开会提示源已停用）
@@ -2835,7 +2998,7 @@ def merge_detail(query, ids_raw, timeout=25):
             if bad_title(v.get("vod_name") or ""):
                 bump("title", 1)
                 continue
-            v["vod_id"] = str(k) + SEP + str(v.get("vod_id"))
+            v["vod_id"] = _agg_id_pack(k, v.get("vod_id"))
             proxify_item(v, (srcs.get(k) or {}).get("api") or "")
             items.append(v)
     print("[detail] %d groups -> %d items" % (len(groups), len(items)), flush=True)
@@ -2865,9 +3028,9 @@ def _agg_norm(s):
 
 
 def item_src(v):
-    """条目来源 key：聚合/搜索结果里的 vod_id 形如 <key>~<上游id>"""
-    s = str((v or {}).get("vod_id") or "")
-    return s.split(SEP, 1)[0] if SEP in s else ""
+    """条目来源 key：聚合/搜索结果里的 vod_id（b64 编码或旧版明文前缀）"""
+    k, _ = _agg_id_unpack((v or {}).get("vod_id"))
+    return k
 
 
 def agg_map_on(tid):
@@ -3431,7 +3594,7 @@ def agg_cat_pool(tid, flt=None, force=False):
                         keep.append(v)
             rows = keep
         for v in rows:
-            v["vod_id"] = str(k) + SEP + str(v.get("vod_id"))
+            v["vod_id"] = _agg_id_pack(k, v.get("vod_id"))
         return rows
 
     # 按「有效源数量」取数：一轮取够 max_src 个有数据的源就停；空白源自动由后面的源补位
@@ -4010,11 +4173,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self.handle_logo()
             if p.path == "/img":
                 return self.handle_img(qs)
+            if p.path in ("/api", "/api/"):
+                return self._json(api_index())
+            if p.path == "/api/instance":
+                return self._json(instance_info())
+            if p.path == "/api/tvbox/preview":
+                return self._json(tvbox_preview())
             if p.path == "/api/settings":
                 return self._json({"ok": True,
                                    "sourceSyncMinutes": _f.get("sync_min", 5),
                                    "backupOnSave": bool(_f.get("backup")),
                                    "backupKeep": _f.get("keep", 5),
+                                   "tvboxMode": str(_f.get("tvbox_mode") or "all"),
+                                   "tvboxExtraSources": int(_f.get("tvbox_extra") or 5),
+                                   "aggInTvbox": bool(_f.get("agg_tvbox")),
                                    "tmdbEnabled": bool(_f.get("tmdb_on", True)),
                                    "filterEnabled": bool(_f.get("filter_on", True)),
                                    "categoryFilterEnabled": bool(_f.get("cats_on", True)),
@@ -4067,6 +4239,11 @@ class Handler(BaseHTTPRequestHandler):
             if p.path == "/api/status":
                 mm = month_rec()
                 return self._json({"ok": True, "uptime": time.time() - START_TS,
+                                   "port": LISTEN_PORT, "version": ADMIN_VER,
+                                   "instance": "全分类实例" if OPEN_MODE else "屏蔽过滤实例",
+                                   "tvboxMode": str(_f.get("tvbox_mode") or "all"),
+                                   "tvboxModeEff": tvbox_mode_eff(),
+                                   "tvboxExtra": int(_f.get("tvbox_extra") or 5),
                                    "cats": len(_f["cats"]), "titles": len(_f["titles"]),
                                    "sources": len(sources_cached()),
                                    "sourcesEnabled": len([k for k in sources_cached() if not src_off(k)]),
@@ -4105,6 +4282,9 @@ class Handler(BaseHTTPRequestHandler):
                                    "sourceOrder": c.get("sourceOrder") or [],
                                    "sourceLimit": c.get("sourceLimit", 0) or 0,
                                    "activeSource": c.get("activeSource", "") or "",
+                                   "tvboxMode": str(_f.get("tvbox_mode") or "all"),
+                                   "tvboxExtraSources": int(_f.get("tvbox_extra") or 5),
+                                   "aggInTvbox": bool(_f.get("agg_tvbox")),
                                    "autoFailover": bool(_f.get("fo_on", True)),
                                    "failoverThreshold": fo_thresh(),
                                    "backupSources": list(_f.get("fo_list") or []),
@@ -4271,6 +4451,17 @@ class Handler(BaseHTTPRequestHandler):
             if p.path == "/api/config":
                 save_config(body)
                 return self._json({"ok": True, "cats": len(_f["cats"]), "titles": len(_f["titles"])})
+            if p.path == "/api/tvbox/mode":
+                m = str(body.get("mode") or _f.get("tvbox_mode") or "all").strip().lower()
+                if m not in ("all", "agg", "agg_n"):
+                    return self._json({"ok": False, "error": "mode 只能是 all / agg / agg_n"}, 400)
+                patch = {"tvboxMode": m}
+                if "extraSources" in body:
+                    patch["tvboxExtraSources"] = body.get("extraSources")
+                if "aggInTvbox" in body:
+                    patch["aggInTvbox"] = bool(body.get("aggInTvbox"))
+                save_config(patch)
+                return self._json(tvbox_preview())
             if p.path == "/api/settings":
                 save_config(body)
                 return self._json({"ok": True, "sourceSyncMinutes": _f["sync_min"],
@@ -4615,13 +4806,34 @@ class Handler(BaseHTTPRequestHandler):
                 sites = sites[:limit]
         elif limit > 0:
             sites = sites[:limit]
+        # TVBOX 下发模式（本端口独立配置）：
+        #   all    = 全部普通源（默认，沿用上面的单源/限量规则）
+        #   agg    = 只下发聚合源，普通源一个都不给，App 启动最快
+        #   agg_n  = 聚合源 + 按当前顺序取前 N 个普通源
+        mode = str(_f.get("tvbox_mode") or "all")
+        extra = int(_f.get("tvbox_extra") or 5)
+        agg_ok = bool(_f.get("agg_on", True))
+        mode_fallback = False
+        if mode in ("agg", "agg_n") and not agg_ok:
+            # 聚合源被关掉还选「只要聚合」会下发空配置，自动回退到全部普通源，别让机顶盒没法用
+            mode, mode_fallback = "all", True
+        if mode in ("agg", "agg_n") and not _agg["cats"]:
+            # 聚合分类树还没建好：先触发构建，本次请求按普通源下发，别让 App 拿到空壳
+            threading.Thread(target=agg_build, daemon=True).start()
+            if mode == "agg":
+                mode = "all"
+            mode_fallback = True
+        if mode == "agg":
+            sites = []
+        elif mode == "agg_n":
+            sites = sites[:extra]
         cfg["sites"] = sites
-        # 自建聚合采集源可选下发到机顶盒：一个站点装下全部源的片库
-        if _f.get("agg_tvbox") and _f.get("agg_on", True):
+        # 自建聚合采集源下发到机顶盒：agg / agg_n 模式强制带；all 模式看「下发到机顶盒」开关
+        if (mode in ("agg", "agg_n") or _f.get("agg_tvbox")) and agg_ok:
             if not _agg["cats"]:
                 threading.Thread(target=agg_build, daemon=True).start()
             elif _agg["cats"]:
-                tpl = dict(sites[0]) if sites else {}
+                tpl = dict(sites[0]) if sites else {"type": 1, "playerType": "", "ext": ""}
                 agg = dict(tpl)
                 agg.update({"key": "__agg__", "name": "🧩 聚合源", "type": 1,
                             "api": SELF + "/agg", "searchable": 1, "quickSearch": 1,
@@ -4709,8 +4921,8 @@ class Handler(BaseHTTPRequestHandler):
             pg = int((qs.get("pg") or ["1"])[0] or 1)
         except Exception:
             pg = 1
-        # 详情：id 形如 <源key>~<上游id>，按前缀回到对应源取，播放地址原样透传
-        if ids and SEP in ids:
+        # 详情：id 形如 <源key>__<上游id>（旧版 ~），按前缀回到对应源取，播放地址原样透传
+        if ids and _agg_id_unpack(ids.split(",")[0])[0]:
             out = agg_detail_page(ids, ac or "videolist")
             return self._send(200, json.dumps(out, ensure_ascii=False).encode())
         # 搜索：全部（或指定数量）启用源并行搜，合并去重
@@ -4797,9 +5009,9 @@ class Handler(BaseHTTPRequestHandler):
         if (qs0.get("wd") or [""])[0] and not (qs0.get("ac") or [""])[0]:
             query = (query + "&ac=videolist") if query else "ac=videolist"
             qs0 = urllib.parse.parse_qs(query, keep_blank_values=True)
-        # 详情：结果可能来自多个源（id 带 <key>~ 前缀），拆开分别取
+        # 详情：结果可能来自多个源（id 带 <key>__ 前缀，旧版 ~），拆开分别取
         ids0 = (qs0.get("ids") or qs0.get("id") or [""])[0]
-        if ids0 and SEP in ids0:
+        if ids0 and _agg_id_unpack(ids0.split(",")[0])[0]:
             try:
                 out = merge_detail(query, ids0)
             except Exception as e:
