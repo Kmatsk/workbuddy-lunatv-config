@@ -338,7 +338,7 @@
     "192.168.3.100"
   ],
   "sourceHealthEnabled": true,
-  "sourceHealthInterval": 21600,
+  "sourceHealthInterval": 3600,
   "sourceHealthFail": 3,
   "sourceHealthRecover": 2,
   "sourceHealthTimeout": 10,
