@@ -319,7 +319,7 @@
   "aggFillEnabled": true,
   "aggFillMax": 20,
   "aggAutoCollectEnabled": true,
-  "aggAutoInterval": 21600,
+  "aggAutoInterval": 3600,
   "aggAutoAt": "",
   "aggAutoScope": "hot",
   "aggAutoHotCount": 12,

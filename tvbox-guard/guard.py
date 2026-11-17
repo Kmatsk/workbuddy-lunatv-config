@@ -4163,12 +4163,21 @@ class Handler(BaseHTTPRequestHandler):
         qs = urllib.parse.parse_qs(p.query)
         try:
             if p.path in ("/", "/index.html"):
-                # 浏览器打开 = 后台页面；TVBox/FongMi 这类 App 的 UA 是 okhttp/dalvik，
-                # 直接把配置 JSON 给它 —— 机顶盒里点播源可以只填 http://NAS:3032
+                # 同一个地址两边用：浏览器打开 = 后台页面；TVBox 类 App 拉配置 = 直接给 JSON。
+                # 判定顺序：① 机顶盒特征 UA 一律给配置；② 明确要 text/html 的才是浏览器；
+                # ③ 其它一律给配置 —— 有些机顶盒的 UA 既不是 okhttp 也不是 dalvik（Lavf/ExoPlayer/厂商定制），
+                # 以前会被当成浏览器返回 140KB 的管理页，机顶盒解析失败，表现为「获取不到配置」。
                 ua0 = (self.headers.get("User-Agent") or "").lower()
-                if any(k in ua0 for k in ("okhttp", "dalvik", "tvbox", "fongmi", "_movie", "/movie")):
-                    return self.handle_tvbox()
-                return self._send(200, render_admin().encode("utf-8"), "text/html; charset=utf-8")
+                acc = (self.headers.get("Accept") or "").lower()
+                box_ua = any(k in ua0 for k in (
+                    "okhttp", "dalvik", "tvbox", "fongmi", "_movie", "/movie",
+                    "exoplayer", "lavf", "kodi", "vlc", "gohttp"))
+                is_browser = ua0.startswith("mozilla") and ("text/html" in acc) and not box_ua
+                if is_browser:
+                    return self._send(200, render_admin().encode("utf-8"), "text/html; charset=utf-8")
+                print("[gate] %s UA分派→配置 ua=%s accept=%s"
+                      % ((self.client_address or ("?", 0))[0], ua0[:40] or "-", acc[:24] or "-"), flush=True)
+                return self.handle_tvbox()
             if p.path == "/logo.png":
                 return self.handle_logo()
             if p.path == "/img":
