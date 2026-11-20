@@ -328,10 +328,10 @@
   "aggLazyCollectEnabled": true,
   "sourceSyncEnabled": true,
   "imageCacheEnabled": true,
-  "imageCacheMaxMB": 256,
+  "imageCacheMaxMB": 512,
   "imageCacheKeepDays": 20,
   "tmdbCacheKeepDays": 45,
-  "cacheMaxMB": 512,
+  "cacheMaxMB": 1024,
   "cacheAutoCleanEnabled": true,
   "onlineIdleMinutes": 5,
   "ignoreDevices": [
