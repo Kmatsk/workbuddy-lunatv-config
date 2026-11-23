@@ -753,8 +753,9 @@ def apply_config(c):
     _f["cats_on"] = bool(c.get("categoryFilterEnabled", True))
     _f["titles_on"] = bool(c.get("titleFilterEnabled", True))
     _f["filter_on"] = bool(c.get("filterEnabled", True))
-    if ADULT_MODE:      # 成人专用实例：屏蔽永远关闭，配置里就算打开也不生效
-        _f["cats_on"] = _f["titles_on"] = _f["filter_on"] = False
+    # 3035 全分类实例：屏蔽总开关/分类/标题改由配置文件手动控制
+    # （默认按 config-open.json，通常全关＝全部放行）。不再无条件强制关闭。
+    # 注意：聚合树保留全部细分类的逻辑由 OPEN_MODE 独立控制，与此处开关无关。
     _f["search_all"] = bool(c.get("searchAllSources", True))
     _f["search_limit"] = max(0, min(50, int(c.get("searchLimit") or 0)))
     _f["agg_on"] = bool(c.get("aggEnabled", True))
@@ -867,9 +868,10 @@ def save_config(c):
         "failoverThreshold": max(1, min(10, int(pick("failoverThreshold", 3) or 3))),
         "backupSources": [str(k).strip() for k in pick("backupSources", []) or [] if str(k).strip()],
         "tmdbEnabled": bool(pick("tmdbEnabled", True)),
-        "categoryFilterEnabled": False if ADULT_MODE else bool(pick("categoryFilterEnabled", True)),
-        "titleFilterEnabled": False if ADULT_MODE else bool(pick("titleFilterEnabled", True)),
-        "filterEnabled": False if ADULT_MODE else bool(pick("filterEnabled", True)),
+        # 3035 全分类实例：过滤开关改为可手动保存（默认仍按 config-open.json，通常全关）
+        "categoryFilterEnabled": bool(pick("categoryFilterEnabled", True)),
+        "titleFilterEnabled": bool(pick("titleFilterEnabled", True)),
+        "filterEnabled": bool(pick("filterEnabled", True)),
         "searchAllSources": bool(pick("searchAllSources", True)),
         "searchLimit": max(0, min(50, int(pick("searchLimit", 0) or 0))),
         "aggEnabled": bool(pick("aggEnabled", True)),
@@ -1186,6 +1188,69 @@ def sh_probe(key, timeout=None):
     except Exception as e:
         ok, detail = False, str(e)[:70]
     return ok, int((time.time() - t0) * 1000), detail
+
+
+# ---------------- 播放线路测速（管理页挑选优质线路用） ----------------
+LINE_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+           "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+
+def _line_probe_one(url, timeout=8):
+    """探测单条播放线路：跟随 302、只读前 32KB 判断可达。返回 dict。
+    用浏览器 UA —— 实测多数源站对 TVBox/1.0.0 的播放页响应明显降速。"""
+    url = str(url or "").strip()
+    res = {"url": url, "ok": False, "ms": 0, "status": 0, "final": "", "err": "", "kind": ""}
+    if not url.lower().startswith(("http://", "https://")):
+        res["err"] = "非 http 地址"
+        return res
+    t0 = time.time()
+    r = None
+    try:
+        import ssl as _ssl
+        ctx = _ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={
+            "User-Agent": LINE_UA, "Accept": "*/*", "Range": "bytes=0-32767"})
+        r = urllib.request.urlopen(req, timeout=timeout, context=ctx)
+        data = r.read(32768)
+        res["status"] = getattr(r, "status", 0) or 0
+        res["final"] = r.geturl()
+        res["ok"] = bool(data)
+        # 判断返回类型：m3u8/视频直链（TVBox 可直接播） vs HTML 播放页（需二次解析，老盒易失败）
+        ct = str(r.headers.get("Content-Type") or "").lower()
+        head = data[:512].lstrip()
+        if b"#extm3u" in data[:256].lower() or "mpegurl" in ct or ".m3u8" in res["final"].lower():
+            res["kind"] = "m3u8"
+        elif head.startswith((b"<html", b"<!doctype", b"<!DOCTYPE")) or "text/html" in ct:
+            res["kind"] = "page"       # 播放页，需要 JS 二次解析
+        elif ct.startswith(("video/", "application/octet-stream")):
+            res["kind"] = "video"
+        else:
+            res["kind"] = "other"
+        if not data:
+            res["err"] = "空响应"
+    except Exception as e:
+        res["err"] = str(e)[:80]
+    finally:
+        if r is not None:
+            try:
+                r.close()
+            except Exception:
+                pass
+        res["ms"] = int((time.time() - t0) * 1000)
+    return res
+
+
+def line_probe_batch(urls, timeout=8, workers=6):
+    """并发探测多条线路，保持输入顺序。限 20 条，避免拖垮服务。"""
+    urls = [u for u in (urls or []) if isinstance(u, str)][:20]
+    if not urls:
+        return {"ok": True, "total": 0, "alive": 0, "results": []}
+    with ThreadPoolExecutor(max_workers=min(workers, len(urls))) as ex:
+        results = list(ex.map(lambda u: _line_probe_one(u, timeout), urls))
+    alive = sum(1 for r in results if r["ok"])
+    return {"ok": True, "total": len(results), "alive": alive, "results": results}
 
 
 def sh_note(key, ok, ms=0, detail="", probe=True, persist=True):
@@ -2407,7 +2472,8 @@ def _agg_id_unpack(s):
 _search_cache = {}             # query -> (ts, payload)
 _search_lock = threading.Lock()
 SEARCH_TTL = 150
-SEARCH_MAX_PER_NAME = 2        # 同名最多保留几个来源，避免刷屏
+SEARCH_MAX_PER_NAME = 12       # 搜索时同名最多保留几个来源：用户搜一部剧就是想看多个播放线路，
+                               # 原值2会把同剧的十几条线路砍到只剩2条，体感"片源少"。提到12兼顾多线路与不过度刷屏
 
 
 def query_key(query):
@@ -2569,6 +2635,7 @@ API_INDEX = [
     ("GET", "/api/agg/collect", "采集调度状态"),
     ("POST", "/api/agg/collect", "采集调度操作 {action: run|clear|save|...}"),
     ("GET", "/api/search_stats", "搜索关键词统计"),
+    ("POST", "/api/line/probe", "播放线路测速 {urls:[...]}：并发探测可用性/耗时/跳转，用于挑选优质线路"),
     ("GET", "/agg", "聚合采集源（苹果 CMS 标准接口，LunaTV / 飞牛影视 / TVBox 当普通源用）"),
     ("GET", "/cms/<key>", "单个片源的过滤中转（机顶盒实际请求的就是这个）"),
 ]
@@ -2875,6 +2942,19 @@ def merge_search(base_key, query, targets=None, limit=None, min_targets=2, cap=8
     srcs = sources_cached()
     if not targets or len(targets) < min_targets:
         return None
+    # 搜索词：上游多把关键词拆词做模糊匹配（搜"多喜一家人"返回"我家的熊孩子"等一堆不相关剧）。
+    # 这里要求片名含完整搜索词、或搜索词含完整片名（片名≥2字），否则判定不相关直接剔除。
+    try:
+        _wd = re.sub(r"\s+", "", urllib.parse.parse_qs(str(query or "")).get("wd", [""])[0]).lower()
+    except Exception:
+        _wd = ""
+    def _relevant(v):
+        if not _wd:
+            return True                      # 无搜索词（分类浏览）不过滤
+        nm = re.sub(r"\s+", "", str(v.get("vod_name") or "")).lower()
+        if not nm:
+            return True                      # 没片名的别误杀，交给上层
+        return (_wd in nm) or (len(nm) >= 2 and nm in _wd)
     t0 = time.time()
 
     def one(k):
@@ -2928,6 +3008,8 @@ def merge_search(base_key, query, targets=None, limit=None, min_targets=2, cap=8
             if bad_title(v.get("vod_name") or ""):
                 bump("title", 1)
                 continue
+            if not _relevant(v):             # 片名与搜索词无关（上游拆词模糊匹配）→ 不显示
+                continue
             nm = re.sub(r"\s+", "", str(v.get("vod_name") or "")) or str(v.get("vod_id"))
             if seen.get(nm, 0) >= SEARCH_MAX_PER_NAME:
                 continue
@@ -2945,6 +3027,19 @@ def merge_search(base_key, query, targets=None, limit=None, min_targets=2, cap=8
         # 额度按「真正有结果的额外源」算：前 N 个有结果的源并进来，后面即使是活的也不再并入
         if lim > 0 and extra_used >= lim:
             break
+    # 搜索结果排序：标题与搜索词完全相等 > 以搜索词开头/包含 > 其它。
+    # 不相关片已在收集时剔除，这里只负责把最精确的排在前面。
+    if _wd:
+        def _rank(v):
+            nm = re.sub(r"\s+", "", str(v.get("vod_name") or "")).lower()
+            if nm == _wd:
+                return 0
+            if nm.startswith(_wd):
+                return 1
+            if _wd in nm:
+                return 2
+            return 3
+        items.sort(key=_rank)      # 稳定排序：同档内保留原来的源优先级顺序
     out = {"code": 1, "msg": "data list", "page": 1, "pagecount": 1,
            "limit": len(items), "total": len(items), "list": items}
     print("[search] %s -> %d sources, %d items, %.2fs (extra used: %s)"
@@ -3682,8 +3777,13 @@ def agg_search_page(query):
         return {"code": 0, "msg": "没有可用源", "page": 1, "pagecount": 1,
                 "limit": "20", "total": 0, "list": []}
     lim = int(_f.get("agg_search") or 0)
+    # 超时放宽：原来 timeout=4/deadline=4.5 太激进，56 个源并发时（尤其撞上后台预采集占带宽）
+    # 绝大多数源来不及响应就被丢弃，用户搜一部剧常常只回来 1~2 条，误以为"片源少"。
+    # 实测放宽到 8/9 秒后能拿到约 30 个源的结果，与单源测试 /api/agg/test 的 8 秒超时一致。
+    # workers 16：并发过高(32)同时打 56 个源会触发大量 SSL 握手超时，反而拿到的源更少；
+    # 降到 16 配合 8 秒超时，实测返回源数更稳定。
     out = merge_search(keys[0], query, targets=keys, limit=lim,
-                       min_targets=1, cap=120, timeout=4, workers=32, deadline=4.5)
+                       min_targets=1, cap=300, timeout=8, workers=16, deadline=9)
     if out is None:
         return {"code": 0, "msg": "搜索失败", "page": 1, "pagecount": 1,
                 "limit": "20", "total": 0, "list": []}
@@ -4557,6 +4657,9 @@ class Handler(BaseHTTPRequestHandler):
             if p.path == "/api/search_stats/reset":
                 searchstats_reset()
                 return self._json({"ok": True, **searchstats_snapshot()})
+            if p.path == "/api/line/probe":
+                r = line_probe_batch(body.get("urls") or [])
+                return self._json(r)
             if p.path == "/api/sync":
                 m = sources_cached(force=True)
                 return self._json({"ok": bool(m), "sources": len(m)})

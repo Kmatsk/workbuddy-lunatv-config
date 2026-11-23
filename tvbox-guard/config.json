@@ -319,7 +319,7 @@
   "aggFillEnabled": true,
   "aggFillMax": 20,
   "aggAutoCollectEnabled": true,
-  "aggAutoInterval": 3600,
+  "aggAutoInterval": 10800,
   "aggAutoAt": "",
   "aggAutoScope": "hot",
   "aggAutoHotCount": 12,
@@ -338,7 +338,7 @@
     "192.168.3.100"
   ],
   "sourceHealthEnabled": true,
-  "sourceHealthInterval": 3600,
+  "sourceHealthInterval": 10800,
   "sourceHealthFail": 3,
   "sourceHealthRecover": 2,
   "sourceHealthTimeout": 10,

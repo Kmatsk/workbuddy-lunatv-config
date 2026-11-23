@@ -171,6 +171,38 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
 .toast{position:fixed;right:22px;bottom:22px;background:#12151c;border:1px solid var(--blue);color:#dbe4ff;
  border-radius:10px;padding:10px 16px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
 .toast.show{opacity:1}
+/* 优质线路：分组卡片 + 线路行 */
+.lncard{border:1px solid var(--line2);border-radius:11px;background:#12151c;margin-bottom:10px;overflow:hidden}
+.lnhead{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer}
+.lnhead:hover{background:#171b24}
+.lnposter{width:38px;height:52px;flex:0 0 38px;object-fit:cover;border-radius:5px;background:#20242f}
+.lnmeta{flex:1;min-width:0}
+.lnname{font-size:14px;color:#e8ecf5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lnsub{font-size:11.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lncount{font-size:11.5px;color:#8fb6ff;border:1px solid #2a3c5e;background:#182031;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.lnbody{display:none;border-top:1px solid var(--line2);padding:6px 14px 12px}
+.lncard.open .lnbody{display:block}
+.lncard.open .lnarw{transform:rotate(90deg)}
+.lnarw{color:var(--muted);transition:.15s;font-size:12px}
+.lnrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #1e222c;flex-wrap:wrap}
+.lnrow:last-child{border-bottom:0}
+.lnidx{color:#6f778a;font-family:ui-monospace,monospace;font-size:11px;flex:0 0 20px}
+.lnsrc{font-size:12.5px;color:#c9d0df;flex:0 0 92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lnurl{flex:1;min-width:120px;font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lnres{font-size:11.5px;flex:0 0 auto;white-space:nowrap}
+.lnres.good{color:var(--green);font-weight:600}
+.lnres.bad{color:var(--red)}
+.lnres.wait{color:var(--muted)}
+.lnbadge{font-size:10.5px;border-radius:4px;padding:2px 6px;background:#1e3326;color:#7ee2a7;border:1px solid #2c5a3a}
+.lnkind{font-size:10.5px;border-radius:4px;padding:2px 6px;margin-left:4px}
+.lnkind.direct{background:#16263a;color:#8fb6ff;border:1px solid #2a3c5e}
+.lnkind.page{background:#332a18;color:#ffc46b;border:1px solid #5a4620}
+.lnprobe{margin:2px 0 8px}
+@media(max-width:760px){
+ .lnsrc{flex:0 0 72px}
+ .lnrow{gap:7px}
+ .lnurl{flex:1 1 100%;order:3}
+}
 @media(min-width:761px) and (max-width:1100px){
  main{max-width:100%;padding:22px 20px 48px}
 }
@@ -223,6 +255,7 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
     <button data-p="agg">采集源</button>
     <button data-p="sched">采集调度</button>
     <button data-p="aggcats">分类</button>
+    <button data-p="lines">优质线路</button>
     <button data-p="search">搜索统计</button>
     <button data-p="update">更新设置</button>
     <button data-p="cache">缓存管理</button>
@@ -366,10 +399,10 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
   <!-- 屏蔽词 -->
   <section class="pane" id="pane-words">
     <div class="card" id="adultNotice" style="display:none">
-      <h2>实例说明 <small>本实例不做屏蔽</small></h2>
+      <h2>实例说明 <small>过滤开关可手动控制</small></h2>
       <div class="muted" style="line-height:1.9">
-        这一套跑在 <b>3035</b> 端口，与 3032 共用同一个 LunaTV 源池：<b>屏蔽功能已强制关闭</b>，聚合源保留全部大分类与细分类（含伦理、福利、里番等），按各源原本的归属挂载。<br>
-        下方的开关与词库在本实例不生效（改了也会被忽略），需要屏蔽请用 3032 那套。
+        这一套跑在 <b>3035</b> 端口，与 3032 共用同一个 LunaTV 源池：<b>屏蔽开关现在可手动开/关</b>（默认关闭＝全部放行，与之前一样不改变现状）；需要时打开下方开关，即按本实例的分类/标题词库过滤。<br>
+        <b>开关关闭时</b>聚合源保留全部大分类与细分类（含伦理、福利、里番等），按各源原本的归属挂载；<b>打开「分类屏蔽」后</b>，命中词库的成人分类（如福利）会从分类栏剔除。想要开箱即屏蔽可用 3032 那套。
       </div>
     </div>
     <div class="card">
@@ -878,6 +911,56 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
     </div>
   </section>
 
+  <!-- 优质线路：分类细分片源 + 筛选 + 多线路测速对比 -->
+  <section class="pane" id="pane-lines">
+    <div class="card">
+      <h2>找片 <small>按片名搜，或按分类细分浏览；可叠加地区 / 年份 / 排序筛选</small></h2>
+      <div class="addrow" style="flex-wrap:wrap">
+        <input class="sel" id="lnQ" placeholder="输入片名，例如 多喜一家人" style="flex:2;min-width:180px">
+        <select class="sel" id="lnTop" style="min-width:110px"><option value="">全部大分类</option></select>
+        <select class="sel" id="lnSub" style="min-width:110px"><option value="">全部细分类</option></select>
+        <button onclick="lnSearch()">搜索 / 筛选</button>
+      </div>
+      <div class="addrow" style="flex-wrap:wrap;margin-top:10px">
+        <input class="sel" id="lnArea" placeholder="地区(如 大陆/美国)" style="flex:1;min-width:130px">
+        <input class="sel" id="lnYear" placeholder="年份(如 2025)" style="flex:1;min-width:100px">
+        <select class="sel" id="lnBy" style="min-width:110px">
+          <option value="">默认排序</option>
+          <option value="time">最新</option>
+          <option value="hits">热度</option>
+          <option value="score">评分</option>
+        </select>
+        <button class="ghost" onclick="lnClear()">清空</button>
+      </div>
+      <div class="muted" style="margin-top:10px">
+        细分类只在选定大分类后可选；不填片名时按分类浏览，填了片名则走搜索（搜索会忽略分类筛选）。
+        结果按片名合并，同一部片的多个来源会归到一组里对比。
+      </div>
+      <div id="lnInfo" class="muted" style="margin-top:8px">尚未搜索</div>
+    </div>
+
+    <div class="card">
+      <h2>线路对比 <small>同片多线路展开 · 自动测速后「可用且最快」的排最前并标优质</small></h2>
+      <div class="rowbtns" style="margin-top:0;margin-bottom:12px">
+        <button onclick="lnProbeAll()">测速全部已展开</button>
+        <button class="ghost" onclick="lnCollapseAll()">全部收起</button>
+        <span class="muted" id="lnProbeInfo">测速用浏览器身份从本 NAS 发起，结果与机顶盒直连可能略有差异，仅供挑选参考</span>
+      </div>
+      <div id="lnList" class="muted">搜索后在这里显示结果</div>
+    </div>
+
+    <div class="card">
+      <h2>说明</h2>
+      <div class="muted" style="line-height:1.9">
+        · 每组卡片是一部片，标题后可看到"共 N 条线路"。点「展开线路」列出该片在各站点的播放线路（来源名 + 第 1 集地址）。<br>
+        · 点「测速排序」会把每条线路的第 1 集地址并发探测：跟随跳转、读一小段数据判断是否可达并记录耗时。<b>绿色「优质」</b>= 可达且最快的直链；<b>红色</b>= 超时 / 403 / 不可达。<br>
+        · <b>线路类型</b>：蓝色「直链」= m3u8 / 视频流，TVBox 能直接播；橙色「播放页」= 网页需 APP 二次解析，老版盒子常报「播放地址解析失败」。排序时直链会排在播放页前面，优先选带「直链」标记的线路最稳。<br>
+        · 测速使用浏览器 UA（源站对机顶盒 UA 常降速），从 NAS 出口发起——和实际机顶盒网络不同，结果仅作相对参考，真正播放以机顶盒里换线路试播为准。<br>
+        · 线路来自已启用的片源，与「片源列表」页的开关一致；被停用的源不参与。
+      </div>
+    </div>
+  </section>
+
   <!-- 更新设置 -->
   <section class="pane" id="pane-update">
     <div class="card">
@@ -1049,6 +1132,7 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
 
 <script>
 const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let CFG={categories:[],titles:[]}, SRC=[], LOGO_TS=0, ADULT=false;
 let ASORT={on:false,mode:'avg',min:2,scope:'all',failLast:true};
 const TITLES={overview:['概览','运行状态与机顶盒订阅地址'],words:['屏蔽词','分类与标题双层过滤'],
@@ -1059,6 +1143,7 @@ const TITLES={overview:['概览','运行状态与机顶盒订阅地址'],words:[
   agg:['采集源','自建聚合采集源 · 一个接口装下全部片库'],
   sched:['采集调度','到点抓一轮就停 · 手动立即采集 · 按需采集开关'],
   aggcats:['分类管理','聚合源分类显隐与排序 · 机顶盒分类栏按此生效'],
+  lines:['优质线路','搜片名 · 多线路对比 · 自动测速挑最快最稳'],
   update:['更新设置','源同步与配置备份'],
   cache:['缓存管理','容量上限 · 保留天数 · 手动清理'],
   logo:['LOGO 设置','TVBox 首页展示图']};
@@ -1079,6 +1164,7 @@ $('nav').addEventListener('click',e=>{
   if(b.dataset.p==='search') loadSearchStats();
   if(b.dataset.p==='agg') loadAgg();
   if(b.dataset.p==='aggcats') loadAggCats();
+  if(b.dataset.p==='lines') initLines();
   if(b.dataset.p==='sched') loadAcq();
   if(b.dataset.p==='cache') loadCache();
   if(b.dataset.p==='update') loadUpdate();
@@ -1594,12 +1680,8 @@ async function loadWords(){
 }
 function applyAdultMode(){
   const n=$('adultNotice'); if(n) n.style.display=ADULT?'':'none';
-  if(!ADULT) return;
-  ['filterOn','catOn','titleOn'].forEach(id=>{const el=$(id);if(el){el.checked=false;el.disabled=true;}});
-  document.querySelectorAll('#pane-words .field').forEach(f=>f.style.opacity='.45');
-  if($('filterInfo')) $('filterInfo').textContent='全分类实例：屏蔽功能已强制关闭';
-  if($('catHint')){$('catHint').textContent='全分类实例不做屏蔽 · 分类全部下发';$('catHint').style.color='#ffb020';}
-  if($('titleHint')){$('titleHint').textContent='全分类实例不做屏蔽 · 标题全部放行';$('titleHint').style.color='#ffb020';}
+  // 3035 全分类实例：屏蔽开关已改为手动控制，不再强制锁死/灰化，交互与 3032 一致
+  // 开关状态由 /api/config 的真实配置驱动（默认关闭＝全部放行）
 }
 function paintFilterUI(dirty){
   if(ADULT) applyAdultMode();
@@ -1623,7 +1705,6 @@ function paintFilterUI(dirty){
 }
 function onFilterUI(){ paintFilterUI(true); }
 async function saveFilter(){
-  if(ADULT){toast('全分类实例：屏蔽已强制关闭，词库仅作备份');return;}
   const body={filterEnabled:$('filterOn').checked,
               categoryFilterEnabled:$('catOn').checked,
               titleFilterEnabled:$('titleOn').checked};
@@ -2208,6 +2289,178 @@ async function aggTest(){
 
 /* ---------- 分类管理 ---------- */
 let CATS=[];
+/* ---------- 优质线路：分类细分 + 筛选 + 多线路测速 ---------- */
+const LN={groups:[],loaded:false};
+function lnFirst(urlstr){
+  // vod_play_url: 「集名$地址#集名$地址...」，取第一段地址
+  const first=String(urlstr||'').split('#')[0];
+  const i=first.lastIndexOf('$');
+  return i>=0?first.slice(i+1):first;
+}
+async function initLines(){
+  fillCatSelects();
+}
+function fillCatSelects(){
+  const top=$('lnTop'),sub=$('lnSub');
+  if(!top||!sub) return;
+  // CATS 由「分类」页加载；这里没有就自己拉一次
+  const done=(groups)=>{
+    top.innerHTML='<option value="">全部大分类</option>';
+    groups.forEach(g=>{const o=document.createElement('option');o.value=g.tid;o.textContent=g.name;top.appendChild(o);});
+    sub.innerHTML='<option value="">全部细分类</option>';
+  };
+  if(Array.isArray(CATS)&&CATS.length){done(CATS);return;}
+  api('/api/agg/cats').then(j=>{if(j&&j.ok){CATS=j.groups||[];done(CATS);}}).catch(()=>{});
+}
+$('lnTop')?.addEventListener('change',()=>{
+  const tid=$('lnTop').value, sub=$('lnSub');
+  sub.innerHTML='<option value="">全部细分类</option>';
+  const g=(CATS||[]).find(x=>String(x.tid)===String(tid));
+  if(g) (g.subs||[]).forEach(s=>{const o=document.createElement('option');o.value=s.tid;o.textContent=s.name;sub.appendChild(o);});
+});
+function lnClear(){
+  ['lnQ','lnArea','lnYear'].forEach(id=>$(id).value='');
+  ['lnTop','lnSub','lnBy'].forEach(id=>$(id).value='');
+  $('lnList').innerHTML='<div class="muted">搜索后在这里显示结果</div>';
+  $('lnInfo').textContent='尚未搜索';
+  LN.groups=[];
+}
+async function lnSearch(){
+  const q=$('lnQ').value.trim();
+  const area=$('lnArea').value.trim(),year=$('lnYear').value.trim(),by=$('lnBy').value;
+  const info=$('lnInfo'),list=$('lnList');
+  info.textContent='正在获取…'; list.innerHTML='<div class="muted">加载中，请稍候（搜索会并发打多个源，约 9 秒）…</div>';
+  let url;
+  if(q){
+    url='/agg?wd='+encodeURIComponent(q);
+  }else{
+    const t=$('lnTop').value, cl=$('lnSub').value;
+    const p=new URLSearchParams({ac:'videolist',pg:'1'});
+    if(t) p.set('t',t);
+    if(cl) p.set('class',cl);
+    if(area) p.set('area',area);
+    if(year) p.set('year',year);
+    if(by) p.set('by',by);
+    url='/agg?'+p.toString();
+  }
+  let d;
+  try{ d=await api(url); }
+  catch(e){ info.textContent='请求失败：'+e; list.innerHTML='<div class="muted">请求失败</div>'; return; }
+  const rows=(d&&d.list)||[];
+  // 本地再按地区/年份过滤一层（上游不认这些参数时兜底）
+  let kept=rows.filter(v=>{
+    if(area && String(v.vod_area||'').indexOf(area)<0) return false;
+    if(year && String(v.vod_year||'')!==year) return false;
+    return true;
+  });
+  // 按片名分组
+  const map=new Map();
+  kept.forEach(v=>{
+    const nm=v.vod_name||'(未命名)';
+    if(!map.has(nm)) map.set(nm,{name:nm,pic:v.vod_pic||'',meta:v,lines:[]});
+    map.get(nm).lines.push(v);
+  });
+  LN.groups=[...map.values()];
+  info.textContent='返回 '+kept.length+' 条 · 合并为 '+LN.groups.length+' 部片'+(q?'（搜索：'+q+'）':'');
+  renderLnGroups();
+}
+function lnLineData(g){
+  // 每条线路 = 搜索结果里的一条（同片不同来源）；取来源名 + 第1集地址
+  return g.lines.map((v,i)=>({
+    src: v.vod_play_from || ('线路'+(i+1)),
+    url: lnFirst(v.vod_play_url),
+    probe: v._probe || null
+  }));
+}
+function renderLnGroups(){
+  const box=$('lnList');
+  if(!LN.groups.length){box.innerHTML='<div class="muted">没有匹配结果，换个关键词或放宽筛选试试</div>';return;}
+  box.innerHTML='';
+  LN.groups.forEach((g,gi)=>{
+    const card=document.createElement('div'); card.className='lncard'; card.id='lnc-'+gi;
+    const lines=lnLineData(g);
+    const good=lines.filter(l=>l.probe&&l.probe.ok).length;
+    const head=document.createElement('div'); head.className='lnhead';
+    head.onclick=()=>card.classList.toggle('open');
+    const pic=g.meta.vod_pic?('<img class="lnposter" src="'+esc(g.meta.vod_pic)+'" onerror="this.style.visibility=\'hidden\'">'):'<div class="lnposter"></div>';
+    head.innerHTML=pic+'<div class="lnmeta"><div class="lnname">'+esc(g.name)+'</div>'+
+      '<div class="lnsub">'+esc([g.meta.vod_area,g.meta.vod_year,g.meta.type_name].filter(Boolean).join(' · '))+'</div></div>'+
+      '<span class="lncount">共 '+lines.length+' 条线路'+(good?' · '+good+' 可用':'')+'</span><span class="lnarw">▶</span>';
+    const body=document.createElement('div'); body.className='lnbody';
+    const btn=document.createElement('button'); btn.className='ghost lnprobe'; btn.textContent='测速排序';
+    btn.onclick=(e)=>{e.stopPropagation();lnProbe(gi);};
+    body.appendChild(btn);
+    const rows=document.createElement('div'); rows.className='lnrows'; rows.id='lnrows-'+gi;
+    renderLnRows(gi,rows);
+    body.appendChild(rows);
+    card.appendChild(head); card.appendChild(body); box.appendChild(card);
+  });
+}
+function renderLnRows(gi,rowsEl){
+  const g=LN.groups[gi]; if(!g) return;
+  const lines=lnLineData(g);
+  rowsEl.innerHTML='';
+  lines.forEach((l,i)=>{
+    const row=document.createElement('div'); row.className='lnrow';
+    let res='<span class="lnres wait">未测速</span>';
+    if(l.probe){
+      const k=l.probe.kind||'';
+      const kindTag=(k==='m3u8'||k==='video')?'<span class="lnkind direct">直链</span>':
+                     (k==='page'?'<span class="lnkind page">播放页</span>':'');
+      if(l.probe.ok){
+        const best=l.probe._best?'<span class="lnbadge">优质 · 最快</span>':'';
+        res='<span class="lnres good">'+l.probe.ms+'ms · HTTP '+l.probe.status+'</span>'+kindTag+best;
+      }else{
+        res='<span class="lnres bad">'+(l.probe.status?('HTTP '+l.probe.status):(l.probe.err||'不可达'))+'</span>'+kindTag;
+      }
+    }
+    row.innerHTML='<span class="lnidx">'+(i+1)+'</span><span class="lnsrc" title="'+esc(l.src)+'">'+esc(l.src)+'</span>'+
+      '<span class="lnurl" title="'+esc(l.url)+'">'+esc(l.url)+'</span>'+res;
+    rowsEl.appendChild(row);
+  });
+}
+async function lnProbe(gi){
+  const g=LN.groups[gi]; if(!g) return;
+  const lines=lnLineData(g);
+  const urls=lines.map(l=>l.url).filter(Boolean);
+  const info=$('lnProbeInfo'); info.textContent='正在测速「'+g.name+'」的 '+urls.length+' 条线路…';
+  let j;
+  try{ j=await api('/api/line/probe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({urls})}); }
+  catch(e){ info.textContent='测速失败：'+e; return; }
+  const res=(j&&j.results)||[];
+  // 各线路结果按 url 对回；同 url 复用
+  const byUrl={}; res.forEach(r=>{byUrl[r.url]=r;});
+  g.lines.forEach(v=>{ v._probe=byUrl[lnFirst(v.vod_play_url)]||null; });
+  // 排序：可用在前 → 直链(m3u8/video，TVBox可直接播)优先于播放页(page) → 再按 ms 升序
+  const direct=k=>k==='m3u8'||k==='video';
+  g.lines.sort((a,b)=>{
+    const pa=a._probe||{},pb=b._probe||{};
+    if(pa.ok!==pb.ok) return pa.ok?-1:1;
+    if(pa.ok){
+      const da=direct(pa.kind)?0:1, db=direct(pb.kind)?0:1;
+      if(da!==db) return da-db;              // 直链排播放页前，避免 APP 解析失败
+    }
+    return (pa.ms||99999)-(pb.ms||99999);
+  });
+  const dat=lnLineData(g);
+  const bestIdx=dat.findIndex(l=>l.probe&&l.probe.ok&&direct(l.probe.kind));
+  if(bestIdx<0) bestIdx=dat.findIndex(l=>l.probe&&l.probe.ok);
+  if(bestIdx>=0) g.lines[bestIdx]._probe._best=true;
+  // 重渲染整组（保留展开状态）
+  const card=$('lnc-'+gi), wasOpen=card?card.classList.contains('open'):false;
+  renderLnGroups();
+  const nc=$('lnc-'+gi); if(nc&&wasOpen) nc.classList.add('open');
+  const alive=(j&&j.alive)||0;
+  info.textContent='「'+g.name+'」测速完成：'+alive+'/'+res.length+' 条可用，已按可用+速度排序（优质排最前）';
+}
+async function lnProbeAll(){
+  if(!LN.groups.length){toast('请先搜索');return;}
+  const open=[...document.querySelectorAll('.lncard.open')].map(c=>+c.id.slice(4));
+  const targets=open.length?open:LN.groups.map((_,i)=>i);
+  for(const gi of targets){ await lnProbe(gi); }
+}
+function lnCollapseAll(){document.querySelectorAll('.lncard.open').forEach(c=>c.classList.remove('open'));}
+
 async function loadAggCats(){
   const j=await api('/api/agg/cats');
   if(!j||!j.ok) return;
