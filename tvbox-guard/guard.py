@@ -18,7 +18,7 @@ LUNA = os.environ.get("LUNA_BASE", "http://192.168.3.100:3030")
 SELF = os.environ.get("SELF_BASE", "http://192.168.3.100:3032")
 LISTEN_PORT = int(os.environ.get("GUARD_PORT", "3032"))
 CONFIG_PATH = os.environ.get("GUARD_CONFIG", "/app/config.json")
-ADMIN_VER = "v2.7"
+ADMIN_VER = "v2.8"
 START_TS = time.time()
 try:
     SELF_HOST = (urllib.parse.urlsplit(SELF).hostname or "").strip()
@@ -49,7 +49,7 @@ _f = {"cats": list(DEFAULT_CATS), "titles": list(DEFAULT_TITLES),
       "cats_on": True, "titles_on": True, "filter_on": True,
       "search_all": True, "search_limit": 0,
       "agg_on": True, "agg_browse": 8, "agg_search": 0, "agg_tvbox": False, "agg_tvsub": False,
-      # TVBOX 下发模式：all=全部普通源（旧行为）/ agg=只下发聚合源 / agg_n=聚合源+前 N 个普通源
+      # TVBOX 下发模式：all=全部普通源 / agg=只下发聚合源 / agg_n=聚合源+前 N 个普通源
       "tvbox_mode": "all", "tvbox_extra": 5,
       "agg_cat_off": set(), "agg_cat_order": [],
       "agg_home": "", "agg_page": 20, "agg_top_pg": 1, "agg_sub_pg": 1, "agg_sub_src": 12,
@@ -64,7 +64,9 @@ _f = {"cats": list(DEFAULT_CATS), "titles": list(DEFAULT_TITLES),
       "cache_max_mb": 512, "cache_auto_clean": True,
       "sh_on": True, "sh_sec": 600, "sh_fail": 3, "sh_ok": 2, "sh_to": 10,
       "asort_on": False, "asort_mode": "avg", "asort_min": 2,
-      "asort_scope": "all", "asort_fail_last": True}
+      "asort_scope": "all", "asort_fail_last": True,
+      # 自定义源：每个端口独立，append 到从 LunaTV 同步的源里；type=cms(标准苹果CMS) / hongguo(红果短剧)
+      "custom": []}
 _stats = {"requests": 0, "blocked": 0, "bcat": 0, "btitle": 0, "thit": 0, "tmiss": 0}
 STAT_FIELDS = ("cat", "title", "hit", "miss")
 STATS_KEEP_MONTHS = max(1, int(os.environ.get("STATS_KEEP_MONTHS", "1")))   # 月度明细只留最近 1 个月，到期自动覆盖
@@ -736,6 +738,8 @@ def apply_config(c):
     _f["placeholder"] = re.compile(c.get("placeholderPattern") or DEFAULT_PLACEHOLDER)
     _f["disabled"] = {str(k) for k in (c.get("disabledSources") or []) if str(k).strip()}
     _f["order"] = [str(k) for k in (c.get("sourceOrder") or []) if str(k).strip()]
+    # 自定义源功能已下线：始终为空，忽略配置中可能残留的 customSources
+    _f["custom"] = []
     _f["sync_min"] = max(1, min(60, int(c.get("sourceSyncMinutes") or 5)))
     _f["backup"] = bool(c.get("backupOnSave", True))
     _f["keep"] = max(1, min(50, int(c.get("backupKeep") or 5)))
@@ -773,6 +777,13 @@ def apply_config(c):
     _f["agg_top_pg"] = max(1, min(5, int(c.get("aggTopPages") or 1)))
     _f["agg_sub_pg"] = max(1, min(5, int(c.get("aggSubPages") or 1)))
     _f["agg_sub_src"] = max(1, min(20, int(c.get("aggSubSources") or 12)))
+    # 优质线路（同剧多源合并 + 换源排序）
+    _f["line_merge"] = bool(c.get("lineMergeEnabled", True))
+    _f["line_max"] = max(2, min(40, int(c.get("lineMax") or 20)))
+    _lm = str(c.get("lineRankMode") or "direct").strip().lower()
+    _f["line_rank"] = _lm if _lm in ("direct", "speed", "source") else "direct"
+    _f["line_probe_on"] = bool(c.get("lineProbeEnabled", True))
+    _f["line_dedupe"] = bool(c.get("lineDedupeEnabled", True))   # 相同线路/重复源筛查
     # 空白源补位：名额内的源没采到数据就跳过，用后面的源补足「有效源数量」
     _f["agg_fill"] = bool(c.get("aggFillEnabled", True))
     _f["agg_fill_max"] = max(1, min(40, int(c.get("aggFillMax") or 20)))
@@ -856,6 +867,7 @@ def save_config(c):
         "categories": [str(w).strip() for w in pick("categories", list(DEFAULT_CATS)) or [] if str(w).strip()],
         "titles": [str(w).strip() for w in pick("titles", list(DEFAULT_TITLES)) or [] if str(w).strip()],
         "placeholderPattern": c.get("placeholderPattern") or DEFAULT_PLACEHOLDER,
+        "customSources": [x for x in (pick("customSources", []) or []) if isinstance(x, dict)],
         "disabledSources": [str(k).strip() for k in pick("disabledSources", []) or [] if str(k).strip()],
         "sourceOrder": [str(k).strip() for k in pick("sourceOrder", []) or [] if str(k).strip()],
         "sourceSyncMinutes": max(1, min(60, int(pick("sourceSyncMinutes", 5) or 5))),
@@ -892,6 +904,11 @@ def save_config(c):
         "aggSubSources": max(1, min(20, int(pick("aggSubSources", 12) or 12))),
         "aggFillEnabled": bool(pick("aggFillEnabled", True)),
         "aggFillMax": max(1, min(40, int(pick("aggFillMax", 20) or 20))),
+        "lineMergeEnabled": bool(pick("lineMergeEnabled", True)),
+        "lineMax": max(2, min(40, int(pick("lineMax", 20) or 20))),
+        "lineRankMode": str(pick("lineRankMode", "direct") or "direct"),
+        "lineProbeEnabled": bool(pick("lineProbeEnabled", True)),
+        "lineDedupeEnabled": bool(pick("lineDedupeEnabled", True)),
         "aggAutoCollectEnabled": bool(pick("aggAutoCollectEnabled", True)),
         "aggAutoInterval": max(300, min(86400, int(pick("aggAutoInterval", 3600) or 3600))),
         "aggAutoAt": str(pick("aggAutoAt", "") or "").strip()[:5],
@@ -1021,20 +1038,406 @@ def sources_cached(force=False):
     ttl = max(1, int(_f.get("sync_min") or 5)) * 60
     # 源同步开关关闭：只用手上的列表，不再去 LunaTV 读源（手动「立即同步」仍然可用）
     if not force and _sources["data"] is not None and not _f.get("sync_on", True):
-        return _sources["data"]
-    if force or _sources["data"] is None or time.time() - _sources["ts"] > ttl:
+        base = _sources["data"]
+    else:
+        if force or _sources["data"] is None or time.time() - _sources["ts"] > ttl:
+            try:
+                req = urllib.request.Request(LUNA + "/api/admin/config", headers={"Cookie": get_cookie()})
+                cfg = json.loads(urllib.request.urlopen(req, timeout=20).read().decode())
+                m = {s["key"]: {"api": s["api"], "name": s.get("name") or s["key"],
+                                "disabled": bool(s.get("disabled"))}
+                     for s in (cfg["Config"].get("SourceConfig") or [])
+                     if s.get("api") and not self_api(s.get("api"))}
+                if m:
+                    _sources["data"], _sources["ts"] = m, time.time()
+            except Exception as e:
+                print("[warn] fetch sources failed:", e, flush=True)
+        base = _sources["data"]
+    m = dict(base or {})
+    # 逐源方案：viaCollect=true 并入采集源表（进聚合 / 受屏蔽 / 参与合并测速 / 自动采集）；
+    # 其余不并入，由 TVBOX 单独下发独立站点，走 /custom/<id>? 端点。
+    for x in _f.get("custom") or []:
+        if not x.get("viaCollect", False):
+            continue
+        k = x["id"]
+        m[k] = {"api": SELF + "/custom/" + urllib.parse.quote(k, safe="") + "?",
+                "name": x["name"], "disabled": not x.get("enabled", True),
+                "custom": x.get("type") or "cms"}
+    return m
+
+
+# ---------------- 自定义源（标准 CMS / 红果短剧）适配 ----------------
+# 自定义源的 api 指向网关自己的 /custom/<id>? 端点；这里把 query(ac=...) 转成上游数据，
+# 统一输出苹果CMS 格式，供搜索/分类/详情/TVBOX 下发全部复用现有链路。
+_CUSTOM_PLAY_CACHE = {}       # (seriesId, number) -> (ts, m3u8绝对地址) 红果播放地址缓存(15分钟)
+_CUSTOM_PLAY_TTL = 300   # 红果 HLS session 会过期，别缓存太久；过期时 /hgplay 会自动换新
+_CUSTOM_ID_PREFIX = "cus_"
+
+
+def _custom_id(api):
+    """按 api 生成稳定短 id（自定义源未指定 id 时用）"""
+    import hashlib as _hl
+    return _CUSTOM_ID_PREFIX + _hl.md5(str(api).encode()).hexdigest()[:10]
+
+
+def _custom_find(cid):
+    for x in (_f.get("custom") or []):
+        if x["id"] == cid:
+            return x
+    return None
+
+
+# ---------- Emby（1906 红果点播目录）适配 ----------
+# 1906 是标准 Emby，播放走 stream.mp4，首字节 <1s（无 1905 自有接口的 30 秒转码）。
+# 但只有「已加入点播目录」的剧可见（1905 页选剧加入，上限 200 部）。
+# 网关做一层苹果CMS转换：TVBOX 用普通 type=1 站点即可，账号密码在自定义源里可改。
+_EMBY_TOKEN = {}          # source id -> (ts, access_token)
+_EMBY_TOKEN_TTL = 1800
+
+
+def _emby_base(x):
+    return str(x.get("api") or "").rstrip("/")
+
+
+def _emby_login(x, timeout=15, force=False):
+    """用配置的账号密码登录 Emby 拿 token；密码变更后可强制刷新"""
+    sid = x["id"]
+    hit = _EMBY_TOKEN.get(sid)
+    if hit and not force and time.time() - hit[0] < _EMBY_TOKEN_TTL:
+        return hit[1]
+    user = str(x.get("username") or "hongguo").strip() or "hongguo"
+    pw = str(x.get("password") or "").strip()
+    # DeviceId 必须带端口：3032/3035 是同账号登录，相同 DeviceId 会互踢 session 导致 401
+    device_id = "guard-%s-%s" % (LISTEN_PORT, sid)
+    auth = ('MediaBrowser Client="TVBox", Device="Guard", DeviceId="%s", Version="1.0"'
+            % device_id)
+    data = json.dumps({"Username": user, "Pw": pw}).encode()
+    req = urllib.request.Request(_emby_base(x) + "/emby/Users/AuthenticateByName", data=data,
+                                 headers={"Content-Type": "application/json",
+                                          "X-Emby-Authorization": auth}, method="POST")
+    for attempt in range(2):
         try:
-            req = urllib.request.Request(LUNA + "/api/admin/config", headers={"Cookie": get_cookie()})
-            cfg = json.loads(urllib.request.urlopen(req, timeout=20).read().decode())
-            m = {s["key"]: {"api": s["api"], "name": s.get("name") or s["key"],
-                            "disabled": bool(s.get("disabled"))}
-                 for s in (cfg["Config"].get("SourceConfig") or [])
-                 if s.get("api") and not self_api(s.get("api"))}
-            if m:
-                _sources["data"], _sources["ts"] = m, time.time()
+            d = json.load(urllib.request.urlopen(req, timeout=timeout))
+            tok = str(d.get("AccessToken") or "")
+            if tok:
+                _EMBY_TOKEN[sid] = (time.time(), tok)
+                return tok
         except Exception as e:
-            print("[warn] fetch sources failed:", e, flush=True)
-    return _sources["data"] or {}
+            if attempt == 0:
+                # 密码可能刚改过：清缓存重试一次
+                _EMBY_TOKEN.pop(sid, None)
+            else:
+                print("[emby] login fail: %s" % str(e)[:80], flush=True)
+    return ""
+
+
+def _emby_api(x, path, timeout=20):
+    base = _emby_base(x)
+    tok = _emby_login(x, timeout=timeout)
+    if not tok:
+        return {}
+    url = base + path + ("&" if "?" in path else "?") + "api_key=" + urllib.parse.quote(tok, safe="")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0"})
+        return json.load(urllib.request.urlopen(req, timeout=timeout))
+    except Exception as e:
+        print("[emby] api %s fail: %s" % (path[:50], str(e)[:70]), flush=True)
+        return {}
+
+
+def _emby_stream(x, episode_id):
+    """分集播放地址：带 api_key 的 1906 stream.mp4，TVBOX 直接点播不占网关带宽"""
+    tok = _emby_login(x)
+    if not tok or not episode_id:
+        return ""
+    return (_emby_base(x) + "/emby/Videos/" + urllib.parse.quote(str(episode_id), safe="")
+            + "/stream.mp4?Static=true&MediaSourceId=" + urllib.parse.quote(str(episode_id), safe="")
+            + "&api_key=" + urllib.parse.quote(tok, safe=""))
+
+
+def _emby_to_cms_show(x, it, cid=""):
+    """Emby Series -> 苹果CMS 条目（vod_id 用 Emby 的 media id）"""
+    eid = str(it.get("Id") or "")
+    pics = (it.get("ImageTags") or {})
+    pic = (_emby_base(x) + "/emby/Items/" + urllib.parse.quote(eid, safe="")
+           + "/Images/Primary") if pics.get("Primary") else ""
+    return {"vod_id": eid, "vod_name": str(it.get("Name") or ""),
+            "vod_pic": pic, "vod_remarks": str(it.get("ProductionYear") or "") or "红果点播",
+            "vod_year": str(it.get("ProductionYear") or ""),
+            "vod_content": str(it.get("Overview") or ""),
+            "vod_play_from": "红果Emby",
+            "vod_play_url": "点播$" + _emby_stream(x, eid)}
+
+
+def _emby_handle(x, qs, timeout=30):
+    """把 query 转成苹果CMS dict：class / videolist(t&pg / ids / wd)"""
+    ac = (qs.get("ac") or ["videolist"])[0]
+    pg = max(1, int((qs.get("pg") or ["1"])[0] or 1))
+    if ac in ("class", "list"):
+        # Emby 点播目录当作一个大分类；细分类用已加入的剧本身（TVBOX 点进去就是列表）
+        return {"code": 1, "msg": "ok",
+                "class": [{"type_id": "hongguo", "type_pid": 0,
+                           "type_name": "红果点播目录", "type_en": "hongguo"}],
+                "list": [], "total": 0}
+
+    wd = (qs.get("wd") or [""])[0].strip()
+    ids = (qs.get("ids") or qs.get("id") or [""])[0].strip()
+    items = []
+    if ids:
+        # 详情：展开剧集。ids 可能是剧 Series id，也可能是分集 Episode id
+        series_id = ids.split(",")[0].strip()
+        eps = _emby_api(x, "/emby/Shows/" + urllib.parse.quote(series_id, safe="")
+                        + "/Episodes?Fields=Name&Limit=500", timeout=timeout)
+        elist = eps.get("Items") or []
+        if not elist:
+            # 已经是分集 id：直接查它自己
+            one = _emby_api(x, "/emby/Items/" + urllib.parse.quote(series_id, safe=""), timeout=timeout)
+            elist = [one] if one.get("Id") else []
+        out = []
+        for e in elist:
+            nm = str(e.get("Name") or "第1集")
+            out.append({"vod_id": series_id, "vod_name": nm,
+                        "vod_play_from": "红果Emby",
+                        "vod_play_url": nm + "$" + _emby_stream(x, e.get("Id"))})
+        lst = out
+        return {"code": 1, "msg": "ok", "class": [], "list": lst, "total": len(lst),
+                "page": 1, "pagecount": 1, "limit": len(lst)}
+    if wd:
+        d = _emby_api(x, "/emby/Items?Recursive=true&SearchTerm="
+                      + urllib.parse.quote(wd) + "&Limit=60&Fields=Name,Overview,ImageTags,ProductionYear",
+                      timeout=timeout)
+        items = d.get("Items") or []
+    else:
+        # 列出点播目录里的剧
+        d = _emby_api(x, "/emby/Items?Recursive=true&IncludeItemTypes=Series&StartIndex="
+                      + str((pg - 1) * 20) + "&Limit=20&Fields=Name,Overview,ImageTags,ProductionYear",
+                      timeout=timeout)
+        items = d.get("Items") or []
+    lst = [_emby_to_cms_show(x, v, x["id"]) for v in items if isinstance(v, dict)]
+    return {"code": 1, "msg": "ok", "class": [], "list": lst, "total": len(lst),
+            "page": pg, "pagecount": 1, "limit": len(lst)}
+
+
+def _hg_api(base, path, data=None, timeout=30):
+    """调红果自有 API。base 形如 http://192.168.3.100:1905/hongguo/"""
+    url = base.rstrip("/") + path
+    for attempt in range(3):
+        try:
+            if data is None:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            else:
+                req = urllib.request.Request(url, data=json.dumps(data).encode(),
+                                             headers={"User-Agent": "Mozilla/5.0",
+                                                      "Content-Type": "application/json"})
+            return json.loads(urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "ignore"))
+        except Exception as e:
+            code = int(getattr(e, "code", 0) or 0)
+            if code == 429 and attempt < 2:      # 红果限流：退避再试，别直接把解析失败甩给 TVBOX
+                time.sleep(2 + attempt * 3)
+                continue
+            print("[custom] hg api %s fail: %s" % (path, str(e)[:80]), flush=True)
+            return {}
+    return {}
+
+
+def _hg_cover(base, url):
+    """红果封面改成走网关 /img 缓存（带签名参数，保留原样也可播，这里只做绝对化兜底）"""
+    s = str(url or "")
+    if s.startswith("//"):
+        return "https:" + s
+    return s
+
+
+def _hg_play_url(x, series_id, number, force=False):
+    """红果某集 m3u8 绝对地址，带缓存（冷启动 20 秒，必须缓存复用）"""
+    base = x["api"]
+    ck = (x["id"], str(series_id), int(number))
+    now = time.time()
+    hit = _CUSTOM_PLAY_CACHE.get(ck)
+    if hit and not force and now - hit[0] < _CUSTOM_PLAY_TTL:
+        return hit[1]
+    _t0 = time.time()
+    d = _hg_api(base, "/api/play", {"seriesId": str(series_id), "number": int(number),
+                                    "clientId": "gw-" + hashlib.md5((str(series_id) + str(number)).encode()).hexdigest()[:12]},
+                timeout=90)
+    print("[hgplay] fetch %s n=%s cost %.1fs media=%s" %
+          (str(series_id)[:12], number, time.time() - _t0, str(d.get("media") or "")[:40]), flush=True)
+    media = str(d.get("media") or "")
+    if not media:
+        # 上游限流/忙时先拿上次地址兜底（/hgplay 会检测 404/410 再换新 session）
+        return (hit[1] if hit else "")
+    url = media if media.startswith("http") else (base.rstrip("/") + "/" + media.lstrip("/"))
+    if len(_CUSTOM_PLAY_CACHE) > 500:
+        _CUSTOM_PLAY_CACHE.clear()
+    _CUSTOM_PLAY_CACHE[ck] = (now, url)
+    return url
+
+
+def _hg_m3u8_abs(url, text):
+    """把 m3u8 里的相对 URI 改成绝对地址。
+
+    红果返回的 playlist 里是 init.mp4 / part-00000.m4s 这种相对路径。
+    TVBOX 老播放器跟随 302 后常沿用原始 /hgplay 地址作 base 去拼分片，
+    结果请求到网关 404 → 表现为「解析失败」。网关直接代理 playlist 并
+    绝对化分片，分片本身仍由盒子直连红果 CDN，不占网关带宽。
+    """
+    out = []
+    for line in str(text or "").splitlines():
+        s = line.strip()
+        if not s:
+            out.append(line)
+            continue
+        if s.startswith("#"):
+            # #EXT-X-MAP:URI="init.mp4" / #EXT-X-KEY:URI="..." / stream inf
+            s = re.sub(r'(URI=")([^"]+)(")',
+                       lambda m: m.group(1) + urllib.parse.urljoin(url, m.group(2)) + m.group(3), s)
+            out.append(s)
+        else:
+            out.append(urllib.parse.urljoin(url, s))
+    return "\n".join(out) + "\n"
+
+
+def _hg_to_cms(x, base, cid=""):
+    """红果单部剧 → 苹果CMS 条目。播放地址走网关 /hgplay 按需代理(302)，避免详情时逐集冷启动"""
+    sid = str(x.get("id") or "")
+    tags = x.get("tags") or []
+    # 带 .m3u8 后缀：部分老 TVBOX 按扩展名判断播放类型，且线路排序会识别为直链
+    proxy = "%s/hgplay.m3u8?cid=%s&sid=%s&n=" % (SELF, urllib.parse.quote(cid, safe=""),
+                                                 urllib.parse.quote(sid, safe=""))
+    segs = []
+    if isinstance(x.get("episodes"), list):
+        for ep in x["episodes"][:500]:
+            n = int(ep.get("number") or 0)
+            if n >= 1:
+                segs.append("第%d集$%s%d" % (n, proxy, n))
+    total = int(x.get("total") or len(segs) or 1)
+    if not segs:
+        segs = ["第1集$%s1" % proxy]
+    return {
+        "vod_id": sid,
+        "vod_name": str(x.get("title") or "未命名"),
+        "vod_pic": _hg_cover(base, x.get("cover")),
+        "vod_content": str(x.get("intro") or ""),
+        "type_name": "红果短剧",
+        "vod_year": "2026",
+        "vod_score": str(x.get("score") or ""),
+        "vod_remarks": str(x.get("subtitle") or (("·".join(tags[:2])) if tags else "短剧")),
+        "vod_play_from": "红果",
+        "vod_play_url": "#".join(segs),
+        "vod_total": total,
+    }
+
+
+def _hg_cat_id(title):
+    """分类名 → 稳定数字 type_id（红果用字符串 id，CMS 要求数字，用 hash 映射）"""
+    return str(int(hashlib.md5(("hg|" + str(title)).encode()).hexdigest()[:7], 16) % 900000 + 100000)
+
+
+def _custom_handle(x, query, timeout=30):
+    """把 query(ac=class / ac=videolist&t=&pg= / &ids= / &wd=) 转成苹果CMS dict"""
+    typ = x.get("type") or "cms"
+    qs = urllib.parse.parse_qs(query)
+    if typ == "emby":
+        return _emby_handle(x, qs, timeout)
+    if typ != "hongguo":
+        return None                      # 标准 CMS 源由 cms_build 直接请求，不在此处理
+    base = x["api"]
+    ac = (qs.get("ac") or ["videolist"])[0]
+    if ac in ("class", "list"):
+        groups = _hg_ensure_cats(base, timeout, force=True)
+        cls = []
+        for g in groups:
+            for it in (g.get("items") or []):
+                nm = str(it.get("title") or "")
+                if not nm:
+                    continue
+                cls.append({"type_id": _hg_cat_id(str(it.get("id") or nm)),
+                            "type_pid": 0, "type_name": nm,
+                            "type_en": "hg%s" % str(it.get("id") or "")})
+        return {"code": 1, "msg": "ok", "class": cls, "list": [], "total": 0}
+
+    wd = (qs.get("wd") or [""])[0].strip()
+    ids = (qs.get("ids") or qs.get("id") or [""])[0].strip()
+    pg = max(1, int((qs.get("pg") or ["1"])[0] or 1))
+    items = []
+    if wd:
+        d = _hg_api(base, "/api/search?q=" + urllib.parse.quote(wd), timeout=timeout)
+        items = d.get("items") or []
+    elif ids:
+        sid = ids.split(",")[0].strip()
+        d = _hg_api(base, "/api/series/" + urllib.parse.quote(sid, safe=""), timeout=timeout)
+        items = [d] if d.get("id") else []
+        # 打开详情就后台预热第1集：红果首次转码约 30 秒，TVBOX 播放器常 15 秒就超时。
+        # 只热第1集，避免搜索/列表页批量请求把红果打到 429。
+        if items:
+            ck = (x["id"], sid, 1)
+            hit = _CUSTOM_PLAY_CACHE.get(ck)
+            if not hit or time.time() - hit[0] >= _CUSTOM_PLAY_TTL:
+                threading.Thread(target=_hg_play_url, args=(x, sid, 1), daemon=True).start()
+    else:
+        t = (qs.get("t") or qs.get("class") or [""])[0].strip()
+        if t:
+            # TVBOX 常把下发的分类名直接当 t/class 回传，先确保名字映射已加载
+            _hg_ensure_cats(base, timeout)
+        cat = _HG_CAT_MAP.get(t) or _HG_NAME_CAT.get(t) or "0"
+        d = _hg_api(base, "/api/catalog/page?category=%s&page=%d" % (urllib.parse.quote(cat, safe=""), pg),
+                    timeout=timeout)
+        items = d.get("items") or []
+    lst = [_hg_to_cms(v, base, x["id"]) for v in items if isinstance(v, dict)]
+    return {"code": 1, "msg": "ok", "class": [], "list": lst, "total": len(lst),
+            "page": pg, "pagecount": 1, "limit": len(lst)}
+
+
+_HG_CAT_MAP = {}      # 数字 type_id → 红果 category id
+_HG_NAME_CAT = {}     # 分类名 / type_en → 红果 category id（TVBOX 回传分类名时用）
+_HG_GROUPS = []
+_HG_CAT_TS = 0
+
+
+def _hg_ensure_cats(base, timeout=30, force=False):
+    """加载红果分类映射。TVBOX 常把下发的「分类名」原样当 t/class 参数回传，
+    只认哈希 tid 会查不到而落回 category=0（表现为只有推荐没有分类）。"""
+    global _HG_CAT_TS, _HG_GROUPS
+    now = time.time()
+    if not force and _HG_CAT_MAP and now - _HG_CAT_TS < 300:
+        return _HG_GROUPS
+    d = _hg_api(base, "/api/catalog/categories", timeout=timeout)
+    groups = d.get("groups") or []
+    if groups:
+        for g in groups:
+            for it in (g.get("items") or []):
+                iid = str(it.get("id") or "")
+                nm = str(it.get("title") or "").strip()
+                if not iid or not nm:
+                    continue
+                _HG_CAT_MAP[_hg_cat_id(iid)] = iid
+                _HG_NAME_CAT[nm] = iid
+                _HG_NAME_CAT["hg" + iid] = iid
+        _HG_GROUPS = groups
+        _HG_CAT_TS = now
+    return _HG_GROUPS
+
+
+def _custom_json(x, query, timeout=30):
+    """标准 CMS 自定义源：直接请求它的 api?query；返回 dict"""
+    url = x["api"] + ("?" + query if query else "")
+    req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0.0"})
+    raw = urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "ignore")
+    return json.loads(raw)
+
+
+def custom_fetch(cid, query, timeout=30):
+    """自定义源统一取数入口：标准 CMS 走 _custom_json，红果走 _custom_handle"""
+    x = _custom_find(cid)
+    if not x:
+        return {"code": 0, "msg": "source not found", "class": [], "list": [], "total": 0}
+    r = _custom_handle(x, query, timeout)
+    if r is not None:
+        return r
+    try:
+        return _custom_json(x, query, timeout)
+    except Exception as e:
+        return {"code": 0, "msg": str(e)[:60], "class": [], "list": [], "total": 0}
 
 
 def src_off(k):
@@ -1203,6 +1606,11 @@ def _line_probe_one(url, timeout=8):
     if not url.lower().startswith(("http://", "https://")):
         res["err"] = "非 http 地址"
         return res
+    # 红果按需代理线路：真要探测就得等上游 30+ 秒冷启动，会把详情接口拖住，
+    # 还误判成不可用沉底。这类地址由 /hgplay 自己兜底，这里直接按可用直链记。
+    if "/hgplay" in url:
+        res.update({"ok": True, "kind": "m3u8", "ms": 1, "status": 200, "final": url})
+        return res
     t0 = time.time()
     r = None
     try:
@@ -1251,6 +1659,224 @@ def line_probe_batch(urls, timeout=8, workers=6):
         results = list(ex.map(lambda u: _line_probe_one(u, timeout), urls))
     alive = sum(1 for r in results if r["ok"])
     return {"ok": True, "total": len(results), "alive": alive, "results": results}
+
+
+# ---------------- 同剧多线路合并：跨源合并 + 直链优先/测速排序 ----------------
+# 苹果CMS 播放字段：vod_play_from="线路A$$$线路B"，vod_play_url="第1集$urlA#...$$$第1集$urlB..."
+# 多个采集源的同一部剧合并成一条 item，线路用 $$$ 拼接，TVBox/LunaTV 点开即可切换。
+_MERGE_TAG = "@M|"          # 复合 id 内部前缀，整体再做 base64url → 对外仍是合法 id（无逗号）
+
+# 线路探测结果缓存：url -> (ts, kind, ok, ms)。搜索时静态排序，详情时查缓存+补探测。
+_line_cache = {}
+_LINE_CACHE_TTL = 1800
+
+
+def _agg_id_pack_multi(ids):
+    """多条 packed id → 一个对外合法的 base64url id（整体无逗号，LunaTV 正则可过）"""
+    raw = _MERGE_TAG + ",".join(str(x) for x in ids if x)
+    return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii").rstrip("=")
+
+
+def _agg_id_unpack_multi(s):
+    """解开复合 id → packed id 列表；普通 id 返回 None"""
+    s = str(s or "")
+    try:
+        raw = base64.urlsafe_b64decode(s + "=" * (-len(s) % 4)).decode("utf-8", "ignore")
+    except Exception:
+        return None
+    if not raw.startswith(_MERGE_TAG):
+        return None
+    return [x for x in raw[len(_MERGE_TAG):].split(",") if x]
+
+
+def _play_split(v):
+    """苹果CMS 播放字段 → [{name, block, first, kind}]，按 $$$ 分组"""
+    froms = str((v or {}).get("vod_play_from") or "").split("$$$")
+    blocks = str((v or {}).get("vod_play_url") or "").split("$$$")
+    out = []
+    for i, block in enumerate(blocks):
+        if not block.strip():
+            continue
+        name = froms[i].strip() if i < len(froms) and froms[i].strip() else ("线路%d" % (i + 1))
+        first = block.split("#")[0]
+        j = first.rfind("$")
+        url = (first[j + 1:] if j >= 0 else first).strip()
+        out.append({"name": name, "block": block, "first": url, "kind": ""})
+    return out
+
+
+def _play_join(lines):
+    return ("$$$".join(x["name"] for x in lines),
+            "$$$".join(x["block"] for x in lines))
+
+
+# ---- 重复源 / 相同线路筛查 ----
+# 最近一次合并的去重统计，供 /agg 返回给后台展示（管理页单用户操作，并发串台不影响功能）
+_LAST_DEDUPE = {"on": True, "dupLines": 0, "dupUrl": 0, "dupSrc": 0,
+                "dupSrcNames": [], "rawLines": 0, "keptLines": 0}
+
+
+def _url_norm(u):
+    """播放URL归一化指纹：去协议/查询/片段、忽略首尾斜杠与大小写。用于判定「相同线路」"""
+    s = str(u or "").strip().lower()
+    s = re.sub(r"^[a-z][a-z0-9+.-]*://", "", s)   # 去协议
+    s = s.split("#")[0].split("?")[0]             # 去 query / fragment
+    return s.strip("/")
+
+
+def _api_norm(a):
+    """采集源 api 归一化：仅忽略大小写与首尾斜杠，保留 query（同 CMS 不同参数视为不同源）"""
+    return str(a or "").strip().lower().rstrip("/")
+
+
+def _dedup_sources(srcs):
+    """从源配置里找出重复配置的源（api 完全相同）：返回 {重复key: 规范key}"""
+    seen, dup = {}, {}
+    for k, info in srcs.items():
+        a = _api_norm((info or {}).get("api"))
+        if not a:
+            continue
+        if a in seen:
+            dup[k] = seen[a]
+        else:
+            seen[a] = k
+    return dup
+
+
+def _kind_static(url):
+    """零成本静态判线路类型：m3u8/video 直链 vs 需二次解析的播放页"""
+    u = str(url or "").lower()
+    if ".m3u8" in u or "mpegurl" in u:
+        return "m3u8"
+    if re.search(r"\.(mp4|flv|ts|mkv|webm)(\?|$)", u):
+        return "video"
+    if "/play/" in u or "/detail/" in u or "/share/" in u or re.search(r"play\.[\w-]+\.", u):
+        return "page"
+    return "other"
+
+
+def _probe_cached(urls, timeout=4):
+    """查缓存 → 缺的并发探测 → 写缓存。返回 {url:{kind,ok,ms}}"""
+    now = time.time()
+    need, out = [], {}
+    for u in urls:
+        hit = _line_cache.get(u)
+        if hit and now - hit[0] < _LINE_CACHE_TTL:
+            out[u] = {"kind": hit[1], "ok": hit[2], "ms": hit[3]}
+        else:
+            need.append(u)
+    need = need[:20]
+    if need:
+        try:
+            with ThreadPoolExecutor(max_workers=min(8, len(need))) as ex:
+                rs = list(ex.map(lambda u: _line_probe_one(u, timeout), need))
+            for u, r in zip(need, rs):
+                kind = r.get("kind") or _kind_static(u)
+                ok = bool(r.get("ok"))
+                ms = int(r.get("ms") or 0)
+                out[u] = {"kind": kind, "ok": ok, "ms": ms}
+                _line_cache[u] = (now, kind, ok, ms)
+        except Exception as e:
+            print("[merge] probe fail: %s" % str(e)[:60], flush=True)
+    return out
+
+
+def _lines_rank(lines, probe=None):
+    """线路排序：可用优先 → 按后台策略（直链优先 / 纯测速 / 源顺序）"""
+    probe = probe or {}
+    direct = lambda k: k in ("m3u8", "video")
+    mode = str(_f.get("line_rank") or "direct")
+
+    def key(x):
+        p = probe.get(x["first"]) or {}
+        kind = p.get("kind") or x.get("kind") or _kind_static(x["first"])
+        x["kind"] = kind
+        ok = 0 if (p.get("ok") is False) else 1      # 未探测的按可用对待，不误杀
+        ms = int(p.get("ms") or 0) or 99999
+        if mode == "speed":                          # 纯测速：不看直链，只按响应时间
+            return (-ok, ms)
+        if mode == "source":                         # 源顺序：保持上游原样，不重排
+            return (0, x.get("_order", 0))
+        return (-ok, 0 if direct(kind) else 1, ms)   # direct（默认）：直链优先再按测速
+
+    lines.sort(key=key)
+    return lines
+
+
+def _merge_items(items, do_probe=False):
+    """同名剧合并成一条：线路跨源拼接 + 相同线路/重复源筛查 + 按策略排序"""
+    global _LAST_DEDUPE
+    stat = {"on": bool(_f.get("line_dedupe", True)), "dupLines": 0, "dupUrl": 0,
+            "dupSrc": 0, "dupSrcNames": [], "rawLines": 0, "keptLines": 0}
+    if not items:
+        _LAST_DEDUPE = stat
+        return items
+    # 合并开关关掉 → 完全回到旧行为（每个源一条独立 item，不拼线路）
+    if not _f.get("line_merge", True):
+        _LAST_DEDUPE = stat
+        return items
+    srcs = sources_cached()
+    dup_src = _dedup_sources(srcs) if stat["on"] else {}
+    dup_src_names = []
+    cap = max(2, int(_f.get("line_max") or 20))       # 后台可调：最多线路数
+    probe_on = do_probe and bool(_f.get("line_probe_on", True))
+
+    groups, order = {}, []
+    for v in items:
+        k = item_src(v)
+        if k in dup_src:                              # 重复配置的源：跳过，只留规范源那份
+            continue
+        nm = re.sub(r"\s+", "", str(v.get("vod_name") or "")) or str(v.get("vod_id"))
+        if nm not in groups:
+            groups[nm] = []
+            order.append(nm)
+        groups[nm].append(v)
+    stat["dupSrc"] = len(dup_src)
+    stat["dupSrcNames"] = [((srcs.get(k) or {}).get("name") or k) for k in dup_src][:10]
+
+    out = []
+    for nm in order:
+        arr = groups[nm]
+        base = dict(arr[0])
+        lines = []
+        for vi, v in enumerate(arr):
+            if not isinstance(v, dict):
+                continue
+            k = item_src(v)
+            sname = (srcs.get(k) or {}).get("name") or k or "源"
+            for ln in _play_split(v):
+                ln = dict(ln)
+                ln["_order"] = vi * 100 + len(lines) % 100   # 源顺序策略用
+                ln["_src"] = k
+                if len(arr) > 1 and ln["name"]:
+                    ln["name"] = "%s·%s" % (sname, ln["name"])
+                lines.append(ln)
+        stat["rawLines"] += len(lines)
+        if not lines:
+            out.append(arr[0])
+            continue
+        probe = _probe_cached([x["first"] for x in lines]) if probe_on else {}
+        lines = _lines_rank(lines, probe)             # 先排序（可用 + 直链优先），再去重保留最优
+        if stat["on"]:
+            seen, uniq = set(), []
+            for ln in lines:
+                key = _url_norm(ln["first"])
+                if key and key in seen:               # 相同线路：已按最优排序，保留第一条
+                    stat["dupLines"] += 1
+                    stat["dupUrl"] += 1
+                    continue
+                if key:
+                    seen.add(key)
+                uniq.append(ln)
+            lines = uniq
+        stat["keptLines"] += len(lines)
+        lines = lines[:cap]                           # 去重后截断到线路上限
+        base["vod_play_from"], base["vod_play_url"] = _play_join(lines)
+        if len(arr) > 1:
+            base["vod_id"] = _agg_id_pack_multi([v.get("vod_id") for v in arr])
+        out.append(base)
+    _LAST_DEDUPE = stat
+    return out
 
 
 def sh_note(key, ok, ms=0, detail="", probe=True, persist=True):
@@ -2924,6 +3550,8 @@ def _search_breadth():
 
 
 def _upstream_json(meta, query, timeout=20):
+    if meta.get("custom"):
+        return custom_fetch(meta["api"].split("/custom/", 1)[1].rstrip("?").split("?", 1)[0], query, timeout)
     url = meta["api"] + ("?" + query if query else "")
     req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0.0"})
     raw = urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "ignore")
@@ -3040,24 +3668,37 @@ def merge_search(base_key, query, targets=None, limit=None, min_targets=2, cap=8
                 return 2
             return 3
         items.sort(key=_rank)      # 稳定排序：同档内保留原来的源优先级顺序
+    # 同剧多源合并成一条：vod_play_from/url 用 $$$ 拼接全部线路，静态按直链优先排序。
+    # 搜索阶段不逐条测速（会拖慢 30+ 源并发），真正的测速排序在详情接口做。
+    items = _merge_items(items, do_probe=False)
     out = {"code": 1, "msg": "data list", "page": 1, "pagecount": 1,
-           "limit": len(items), "total": len(items), "list": items}
-    print("[search] %s -> %d sources, %d items, %.2fs (extra used: %s)"
-          % ("+".join(targets), len(targets), hit, time.time() - t0,
+           "limit": len(items), "total": len(items), "list": items,
+           "dedupe": dict(_LAST_DEDUPE)}
+    print("[search] %s -> %d sources, %d items (merged), %.2fs (extra used: %s)"
+          % ("+".join(targets), len(targets), len(items), time.time() - t0,
              "+".join(used) if used else "-"), flush=True)
     return out
 
 
 def merge_detail(query, ids_raw, timeout=25):
-    """详情请求里带来源前缀时，按来源拆开分别取，再合并回一个列表"""
+    """详情请求里带来源前缀时，按来源拆开分别取，再合并回一个列表
+
+    同剧多源现在合并成一条：vod_play_from/url 用 $$$ 拼接全部线路，
+    按 直链优先+测速 排序，TVBox 点开即可切换，最优线路排第一。
+    """
     srcs = sources_cached()
     qs = urllib.parse.parse_qs(query)
     ac = (qs.get("ac") or ["detail"])[0] or "detail"
-    groups, order = {}, []
-    for token in str(ids_raw).split(","):
-        token = token.strip()
-        if not token:
+    # 展开复合 id（搜索结果合并后的多条源）
+    tokens = []
+    for tok in str(ids_raw).split(","):
+        tok = tok.strip()
+        if not tok:
             continue
+        multi = _agg_id_unpack_multi(tok)
+        tokens.extend(multi if multi else [tok])
+    groups, order = {}, []
+    for token in tokens:
         k, vid = _agg_id_unpack(token)
         if not k:
             continue
@@ -3096,9 +3737,12 @@ def merge_detail(query, ids_raw, timeout=25):
             v["vod_id"] = _agg_id_pack(k, v.get("vod_id"))
             proxify_item(v, (srcs.get(k) or {}).get("api") or "")
             items.append(v)
-    print("[detail] %d groups -> %d items" % (len(groups), len(items)), flush=True)
+    # 同剧多源合并成一条，线路按 直链优先+测速 排序（详情是真正播放入口，值得探测）
+    items = _merge_items(items, do_probe=True)
+    print("[detail] %d groups -> %d items (merged)" % (len(groups), len(items)), flush=True)
     return {"code": 1, "msg": "data list", "page": 1, "pagecount": 1,
-            "limit": len(items), "total": len(items), "list": items}
+            "limit": len(items), "total": len(items), "list": items,
+            "dedupe": dict(_LAST_DEDUPE)}
 
 
 # ---------------- 自建聚合采集源（一个 CMS 接口聚合全部源） ----------------
@@ -3108,7 +3752,7 @@ AGG_FILE = os.path.join(CACHE_DIR, "aggcats.json")
 AGG_POOL_TTL = 600          # 分类页合并结果缓存
 AGG_SUB_SRC_MAX = 12        # 每个细分类最多挂多少个源（按源顺序取前 N）
 AGG_CAT_TTL = 1800          # 分类树缓存
-AGG_CAP_PER_NAME = 1        # 同名只留一条，分类页不再出现同一部片的两三个来源
+AGG_CAP_PER_NAME = 12       # 分类页同名收集多个源（上限），随后合并成一条：一部剧只显示一条但含全部线路
 AGG_SCHEMA = 2              # 2 = 两级分类（大分类 + 细分类）+ 条件筛选
 _agg = {"cats": [], "ids": {}, "map": {}, "top": set(), "ts": 0.0,
         "pool": {}, "empty": {}, "lock": threading.Lock()}
@@ -3123,8 +3767,14 @@ def _agg_norm(s):
 
 
 def item_src(v):
-    """条目来源 key：聚合/搜索结果里的 vod_id（b64 编码或旧版明文前缀）"""
-    k, _ = _agg_id_unpack((v or {}).get("vod_id"))
+    """条目来源 key：聚合/搜索结果里的 vod_id（b64 编码或旧版明文前缀）
+    复合 id（同剧多源合并）取第一个来源做停启用判断——源全停才下架。"""
+    vid = (v or {}).get("vod_id")
+    multi = _agg_id_unpack_multi(vid)
+    if multi:
+        k, _ = _agg_id_unpack(multi[0])
+        return k
+    k, _ = _agg_id_unpack(vid)
     return k
 
 
@@ -3285,6 +3935,108 @@ SUB_CANON = {
 }
 AGG_SUB_BAD = {"全部", "更多", "最新", "热门", "推荐", "其它", "其他", "未知", "无",
                "专题", "排行", "全部影片", "全部视频", "未分类", "默认"}
+
+# ---- 细分类归属校验：修正「同一部剧因各源标注不一致而出现在多个互斥细分类」----
+# 各上游源对同一部剧的产地/类型标注常常互相矛盾（如同一部剧 A 源标内地、B 源标台湾），
+# 聚合时按各源原始 tid 采集，就会让这部剧同时出现在「国产剧」和「台湾剧」等互斥分类里。
+# 校验规则：用影片自带 vod_class 判断——只有「明确标注了互斥类别、且完全不含本类关键词」
+# 时才剔除；标签为空或不含任何可判定关键词的一律保留，宁可漏纠也不误伤。
+# 地区词：命中不同地区的标签视为互斥（一部剧通常只有一个产地）
+_SUB_REGION = {
+    "大陆": ("国产", "内地", "大陆", "中国大陆", "国产剧", "内地剧", "大陆剧"),
+    "香港": ("香港", "港剧", "中国香港", "香港剧"),
+    "台湾": ("台湾", "台剧", "中国台湾", "台湾剧"),
+    "韩国": ("韩国", "韩剧", "韩国剧"),
+    "日本": ("日本", "日剧", "日本剧", "日韩"),
+    "欧美": ("欧美", "美国", "英国", "法国", "欧洲", "美剧", "英剧", "欧美剧"),
+    "泰国": ("泰国", "泰剧"),
+}
+# 细分类名 -> 它代表的地区 key（None 表示非地区类，不做地区校验）
+_SUB_REGION_OF = {
+    "国产剧": "大陆", "内地剧": "大陆", "大陆剧": "大陆",
+    "香港剧": "香港", "港剧": "香港", "港澳剧": "香港",
+    "台湾剧": "台湾", "台剧": "台湾",
+    "韩剧": "韩国", "韩国剧": "韩国",
+    "日剧": "日本", "日本剧": "日本",
+    "欧美剧": "欧美", "美剧": "欧美", "英剧": "欧美", "海外剧": "欧美",
+    "泰剧": "泰国",
+    "大陆综艺": "大陆", "国内综艺": "大陆",
+    "港台综艺": "香港", "香港综艺": "香港", "台湾综艺": "台湾",
+    "日韩综艺": "日本", "韩国综艺": "韩国", "日本综艺": "日本",
+    "欧美综艺": "欧美",
+    "国产动漫": "大陆", "中国动漫": "大陆",
+    "日韩动漫": "日本", "日本动漫": "日本", "韩国动漫": "韩国",
+    "欧美动漫": "欧美", "海外动漫": "欧美",
+    "港台动漫": "香港", "香港动漫": "香港", "台湾动漫": "台湾",
+}
+
+
+def _agg_sub_belongs(v, sub_name):
+    """影片是否「看起来属于」这个细分类。仅做保守纠偏，证据不足一律放行。
+    sub_name: 聚合细分类名（如 国产剧/台湾剧）。返回 True=保留, False=剔除。"""
+    want = _SUB_REGION_OF.get(str(sub_name or "").strip())
+    if not want:
+        return True                      # 非地区类（动作片/喜剧片等）不做地区校验
+    vc = str((v or {}).get("vod_class") or "")
+    if not vc:
+        return True                      # 无标签：无从判断，放行
+    low = vc.lower()
+    # 本类关键词命中任一 → 认定属于本类，直接保留
+    for w in _SUB_REGION[want]:
+        if w.lower() in low:
+            return True
+    # 本类关键词没命中，但明确命中了「别的地区」→ 判定错分，剔除
+    for other, words in _SUB_REGION.items():
+        if other == want:
+            continue
+        for w in words:
+            if w.lower() in low:
+                return False
+    return True                          # 标签里没有任何地区词（纯类型标签）→ 放行
+
+
+# 大分类类型互斥：某源的子类挂错（如「电影」下混入剧集/动漫）时剔除。
+# 同样只在「标签明确属于另一个互斥大类、且完全不含本类关键词」时剔除。
+_SUB_KIND_OF = {
+    "电影": "电影", "电视剧": "剧", "综艺": "综艺", "动漫": "动漫",
+    "纪录片": "纪录片", "短剧": "短剧", "体育": "体育",
+}
+_SUB_KIND_WORDS = {
+    "电影": ("电影", "影片", "剧场版"),
+    "剧": ("电视剧", "国产剧", "韩剧", "日剧", "美剧", "欧美剧", "港剧", "台剧", "连续剧", "剧集"),
+    "综艺": ("综艺", "真人秀", "脱口秀", "选秀"),
+    "动漫": ("动漫", "动画", "动画片", "漫剧", "二次元"),
+    "纪录片": ("纪录片", "记录片"),
+    "短剧": ("短剧", "微短剧", "爽剧"),
+    "体育": ("体育", "赛事", "篮球", "足球", "nba", "cba", "斯诺克", "网球"),
+}
+
+
+def _agg_top_belongs(v, top_name):
+    """大分类归属校验：仅当影片标签明确指向另一个互斥大类时才剔除。
+    电影 与 剧/综艺/动漫/纪录片/短剧/体育 互斥；动漫电影同时属于电影+动漫，特殊放行。"""
+    kind = _SUB_KIND_OF.get(str(top_name or "").strip())
+    if not kind:
+        return True
+    vc = str((v or {}).get("vod_class") or "")
+    if not vc:
+        return True
+    low = vc.lower()
+    # 本类关键词命中 → 保留
+    for w in _SUB_KIND_WORDS.get(kind, ()):
+        if w.lower() in low:
+            return True
+    # 动漫电影：既是电影也是动漫，两边都放行，避免误伤
+    if ("动漫" in low or "动画" in low) and kind == "动漫":
+        return True
+    # 明确命中其他互斥大类的关键词 → 剔除
+    for k, words in _SUB_KIND_WORDS.items():
+        if k == kind:
+            continue
+        for w in words:
+            if w.lower() in low:
+                return False
+    return True
 # 条件筛选
 AGG_AREAS = ["大陆", "香港", "台湾", "美国", "韩国", "日本", "泰国", "英国", "法国", "印度"]
 AGG_LANGS = ["国语", "粤语", "英语", "韩语", "日语", "泰语"]
@@ -3383,6 +4135,8 @@ def agg_build(force=False):
 
     groups = {}     # 大分类名 -> {源 key: 该站顶层 tid}
     subs = {}       # (大分类名, 归一细类名) -> {"cnt": {原名: 次数}, "src": {源: tid}}
+    custom_tops = {}   # 手动源 key -> 独立大分类名（每个手动源单独成一类）
+    custom_subs = {}   # (源 key, 原分类名) -> {"cnt": {原名: 次数}, "src": {源: tid}}
     for k, cls in parts:
         rows = [c for c in cls if isinstance(c, dict) and c.get("type_id") is not None]
         if not rows:
@@ -3391,6 +4145,20 @@ def agg_build(force=False):
         # 顺手把父子关系写进 cls_children 的缓存，分类页取子分类时不用再打一次 ac=class
         with _cls_pid_lock:
             _cls_pid[k] = {str(c["type_id"]): str(c.get("type_pid") or 0) for c in rows}
+        # 手动源（自定义源）：不并入标准大分类，自己单独做一个大分类；
+        #  它的每个分类作为该大分类下的细分类，照样能被显隐/拖动排序控制。
+        if (srcs.get(k) or {}).get("custom"):
+            cname = str((srcs.get(k) or {}).get("name") or k).strip() or k
+            custom_tops[k] = cname
+            for c in rows:
+                raw = str(c.get("type_name") or "").strip()
+                if not raw or raw in AGG_SUB_BAD:
+                    continue
+                tid = str(c["type_id"])
+                it = custom_subs.setdefault((k, raw), {"cnt": {}, "src": {}})
+                it["cnt"][raw] = it["cnt"].get(raw, 0) + 1
+                it["src"].setdefault(k, tid)
+            continue
         for c in rows:
             raw = str(c.get("type_name") or "").strip()
             if OPEN_MODE:
@@ -3443,6 +4211,21 @@ def agg_build(force=False):
             amap[str(sid)] = dict(list(it["src"].items())[:20])
         if str(gid) not in amap and items:      # 该站只有细分类、没有父入口时兜底
             amap[str(gid)] = dict(list(items[0][1]["src"].items())[:20])
+    # 手动源单独的大分类：每个源一个大类（名字=源名），它自己的分类作为细分类
+    for k, cname in custom_tops.items():
+        gid = _agg_tid("CUSTOM|" + cname)
+        cats.append({"type_id": gid, "type_pid": 0, "type_name": cname})
+        # 大类映射用一个不在红果 category 映射里的哨兵 tid → _custom_handle 返回该源全部内容
+        amap[str(gid)] = {k: "__all__"}
+        mine = []
+        for (sk, raw), it in custom_subs.items():
+            if sk == k:
+                mine.append((raw, it))
+        for raw, it in mine[:60]:
+            sid = _agg_tid("CUSTOM|" + cname + "|" + raw)
+            cats.append({"type_id": sid, "type_pid": gid, "type_name": raw})
+            # 细分类映射：红果按 type_id 查 _HG_CAT_MAP 拿真实 category；这里存分类原始 id
+            amap[str(sid)] = {k: str(next(iter(it["src"].values())))}
     _agg["cats"] = cats
     _agg["map"] = amap
     _agg["top"] = {str(c["type_id"]) for c in cats if not c.get("type_pid")}
@@ -3630,6 +4413,9 @@ def agg_cat_pool(tid, flt=None, force=False):
     if not tids:
         return []
     is_top = tid in _agg.get("top", set())
+    # 当前分类名（细分类归属校验用）；大分类取它自己的名字
+    sub_name = next((c.get("type_name") for c in _agg["cats"]
+                     if str(c.get("type_id")) == tid), "")
     # 拉取数量可在后台调：源数量 × 每源页数（大分类/细分类分开设置）
     if is_top:
         max_src = max(1, int(_f.get("agg_browse") or 8))
@@ -3715,17 +4501,26 @@ def agg_cat_pool(tid, flt=None, force=False):
                     items.extend(part)
         if not fill_on:
             break
-    seen, out = {}, []
+    seen, named, fixed = {}, [], 0
     for v in items:
         if not isinstance(v, dict):
             continue
         if not src_on(item_src(v)):     # 抓取途中源被停用：结果同样丢弃
             continue
+        # 归属校验：某源把片标成别的产地/类型时，从本类剔除它的这条线路。
+        # 只在明确互斥时剔除（证据不足一律保留，宁可漏纠不误伤）。
+        if ((not is_top and not _agg_sub_belongs(v, sub_name)) or
+                (is_top and not _agg_top_belongs(v, sub_name))):
+            fixed += 1
+            continue
         nm = re.sub(r"\s+", "", str(v.get("vod_name") or "")) or str(v.get("vod_id"))
         if seen.get(nm, 0) >= AGG_CAP_PER_NAME:
             continue
         seen[nm] = seen.get(nm, 0) + 1
-        out.append(v)
+        named.append(v)
+    # 同剧多源合并成一条：细分类里一部剧只显示一条，vod_id 为复合 id，
+    # 点开详情能切换全部线路且直链优先。静态排序（分类页不逐条测速，详情接口才测）。
+    out = _merge_items(named, do_probe=False)
     by = (flt or {}).get("by") or "time"
     if by == "hits":
         out.sort(key=lambda v: _agg_num(v.get("vod_hits")), reverse=True)
@@ -3737,9 +4532,9 @@ def agg_cat_pool(tid, flt=None, force=False):
         if len(_agg["pool"]) > 24:
             _agg["pool"].clear()
         _agg["pool"][ckey] = (time.time(), out)
-    print("[agg] 分类 %s%s 有效 %d 个源（试 %d）→ %d 条"
+    print("[agg] 分类 %s%s 有效 %d 个源（试 %d）→ %d 条（归属纠偏剔除 %d）"
           % (tid, (" 「%s」" % " ".join("%s=%s" % (k, v) for k, v in flt.items())) if flt else "",
-             len(good), pos, len(out)), flush=True)
+             len(good), pos, len(out), fixed), flush=True)
     # 细分类实测为空（映射到的源都没内容）时记下来，分类栏自动下架，别让用户点开空壳
     if not out and not is_top and not flt:
         with _agg["lock"]:
@@ -3768,7 +4563,8 @@ def agg_list_page(tid=None, pg=1, flt=None):
     page = pool[(pg - 1) * size: pg * size]
     return {"code": 1, "msg": "数据列表", "page": pg,
             "pagecount": max(1, (total + size - 1) // size), "limit": str(size),
-            "total": total, "class": vis, "list": page}
+            "total": total, "class": vis, "list": page,
+            "dedupe": dict(_LAST_DEDUPE)}
 
 
 def agg_search_page(query):
@@ -4160,22 +4956,30 @@ def cms_build(key, query, meta, cacheable=True, timeout=15):
             _pg = re.search(r"(?:^|&)pg=(\d+)(?:&|$)", query)
             return cms_build_parent(key, meta, query, int(tm.group(1)),
                                     int(_pg.group(1)) if _pg else 1, _kids, timeout)
-    url = meta["api"] + ("?" + query if query else "")
-    req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0.0"})
     t0 = time.time()
-    try:
-        raw = urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "ignore")
-    except Exception as e:
-        fo_note(key, False, str(e)[:50] or "上游请求失败")
-        raise
-    _stats["slow"] = _stats.get("slow", 0) + (1 if time.time() - t0 > 3 else 0)
-    try:
-        data = json.loads(raw)
-    except Exception:
-        fo_note(key, False, "上游返回非 JSON")
-        out = raw.encode()
-        cms_store(ck, out, "text/plain; charset=utf-8", cacheable)
-        return out, "text/plain; charset=utf-8"
+    if meta.get("custom"):
+        # 自定义源：网关内直接转换（标准CMS取上游 / 红果转苹果CMS），不再发 HTTP 给自己
+        try:
+            data = custom_fetch(meta["api"].split("/custom/", 1)[1].rstrip("?").split("?", 1)[0], query, timeout)
+        except Exception as e:
+            fo_note(key, False, str(e)[:50] or "自定义源取数失败")
+            raise
+    else:
+        url = meta["api"] + ("?" + query if query else "")
+        req = urllib.request.Request(url, headers={"User-Agent": "TVBox/1.0.0"})
+        try:
+            raw = urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "ignore")
+        except Exception as e:
+            fo_note(key, False, str(e)[:50] or "上游请求失败")
+            raise
+        _stats["slow"] = _stats.get("slow", 0) + (1 if time.time() - t0 > 3 else 0)
+        try:
+            data = json.loads(raw)
+        except Exception:
+            fo_note(key, False, "上游返回非 JSON")
+            out = raw.encode()
+            cms_store(ck, out, "text/plain; charset=utf-8", cacheable)
+            return out, "text/plain; charset=utf-8"
     fo_note(key, True)
     if isinstance(data, dict):
         if isinstance(data.get("class"), list):
@@ -4383,6 +5187,14 @@ class Handler(BaseHTTPRequestHandler):
                                    "idleMin": int(_f.get("idle_min") or 5),
                                    "devices": devices_snapshot(),
                                    "traffic": flow_snapshot()})
+            if p.path == "/api/customsrc":
+                # 手动源单独下发，不再算采集源：inUse 表示是否已在 TVBOX 订阅里启用
+                items = [{**x, "inUse": bool(x.get("enabled", True)), "api": x["api"]}
+                         for x in (_f.get("custom") or [])]
+                return self._json({"ok": True, "items": items,
+                                   "self": SELF,
+                                   "catalog": sorted(x["id"] for x in (_f.get("custom") or [])
+                                                     if x.get("enabled", True))})
             if p.path == "/api/config":
                 c = read_config_file()
                 return self._json({"categories": c.get("categories") or list(DEFAULT_CATS),
@@ -4407,7 +5219,12 @@ class Handler(BaseHTTPRequestHandler):
                                    "sourceHealthInterval": int(_f.get("sh_sec") or 600),
                                    "sourceHealthFail": int(_f.get("sh_fail") or 3),
                                    "sourceHealthRecover": int(_f.get("sh_ok") or 2),
-                                   "sourceHealthTimeout": int(_f.get("sh_to") or 10)})
+                                   "sourceHealthTimeout": int(_f.get("sh_to") or 10),
+                                   "lineMergeEnabled": bool(_f.get("line_merge", True)),
+                                   "lineMax": int(_f.get("line_max") or 20),
+                                   "lineRankMode": str(_f.get("line_rank") or "direct"),
+                                   "lineProbeEnabled": bool(_f.get("line_probe_on", True)),
+                                   "lineDedupeEnabled": bool(_f.get("line_dedupe", True))})
             if p.path == "/api/sources":
                 order = {k: i for i, k in enumerate(_f["order"])}
                 eff = {k: i for i, k in enumerate(ordered_source_keys("deliver"))}
@@ -4516,6 +5333,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, **acq_snapshot()})
             if p.path in ("/api/srcstat", "/api/src/health"):
                 return self._json(sh_snapshot())
+            if p.path in ("/hgplay", "/hgplay.m3u8"):
+                return self.handle_hgplay(qs)
+            if p.path.startswith("/custom/"):
+                cid = urllib.parse.unquote(p.path[len("/custom/"):])
+                out = custom_fetch(cid, p.query, timeout=30)
+                body = json.dumps(out, ensure_ascii=False).encode()
+                return self._send(200, body, "application/json; charset=utf-8")
             if p.path.startswith("/cms/"):
                 return self.handle_cms(p)
             self._json({"error": "not found"}, 404)
@@ -4560,6 +5384,49 @@ class Handler(BaseHTTPRequestHandler):
             if p.path == "/api/config":
                 save_config(body)
                 return self._json({"ok": True, "cats": len(_f["cats"]), "titles": len(_f["titles"])})
+            if p.path == "/api/customsrc":
+                # 整表覆盖：前端传 {items:[{id,name,api,type,enabled,order}...]}
+                items = body.get("items") if isinstance(body.get("items"), list) else None
+                if items is None:
+                    return self._json({"ok": False, "error": "items required"}, 400)
+                clean = []
+                seen = set()
+                for x in items:
+                    if not isinstance(x, dict):
+                        continue
+                    api = str(x.get("api") or "").strip()
+                    if not api:
+                        continue
+                    cid = str(x.get("id") or "").strip() or _custom_id(api)
+                    if cid in seen:
+                        continue
+                    seen.add(cid)
+                    typ = str(x.get("type") or "cms").strip().lower()
+                    clean.append({"id": cid,
+                                  "name": str(x.get("name") or "").strip() or "自定义源",
+                                  "api": api,
+                                  "type": typ if typ in ("cms", "hongguo", "emby") else "cms",
+                                  "username": str(x.get("username") or "").strip(),
+                                  "password": str(x.get("password") or "").strip(),
+                    "enabled": bool(x.get("enabled", True)),
+                    "viaCollect": bool(x.get("viaCollect", False)),
+                    "order": int(x.get("order") or 0)})
+                save_config({"customSources": clean})
+                # 源表变了，清掉 CMS/聚合缓存与分类树，避免旧数据残留
+                with _cms_lock:
+                    _cms_cache.clear()
+                with _agg["lock"]:
+                    _agg["pool"].clear()
+                    _agg["cats"] = []
+                    _agg["map"] = {}
+                # 立即重建分类树：手动源各自成大类 + 细分类，随后自动采集/分类浏览直接可用
+                try:
+                    agg_build(force=True)
+                except Exception as _e:
+                    print("[custom] rebuild cats failed: %s" % str(_e)[:80], flush=True)
+                agg_src_prune(rebuild=False)
+                return self._json({"ok": True, "items": clean, "count": len(clean),
+                                   "cats": len(_agg.get("cats") or [])})
             if p.path == "/api/tvbox/mode":
                 m = str(body.get("mode") or _f.get("tvbox_mode") or "all").strip().lower()
                 if m not in ("all", "agg", "agg_n"):
@@ -4674,7 +5541,12 @@ class Handler(BaseHTTPRequestHandler):
                                    "pageSize": int(_f.get("agg_page") or 20),
                                    "topPages": int(_f.get("agg_top_pg") or 1),
                                    "subPages": int(_f.get("agg_sub_pg") or 1),
-                                   "subSources": int(_f.get("agg_sub_src") or 12)})
+                                   "subSources": int(_f.get("agg_sub_src") or 12),
+                                   "lineMergeEnabled": bool(_f.get("line_merge", True)),
+                                   "lineMax": int(_f.get("line_max") or 20),
+                                   "lineRankMode": str(_f.get("line_rank") or "direct"),
+                                   "lineProbeEnabled": bool(_f.get("line_probe_on", True)),
+                                   "lineDedupeEnabled": bool(_f.get("line_dedupe", True))})
             if p.path == "/api/agg/rebuild":
                 with _agg["lock"]:
                     _agg["pool"].clear()
@@ -5033,8 +5905,9 @@ class Handler(BaseHTTPRequestHandler):
             pg = int((qs.get("pg") or ["1"])[0] or 1)
         except Exception:
             pg = 1
-        # 详情：id 形如 <源key>__<上游id>（旧版 ~），按前缀回到对应源取，播放地址原样透传
-        if ids and _agg_id_unpack(ids.split(",")[0])[0]:
+        # 详情：id 形如 <源key>__<上游id>（旧版 ~），或复合 id（同剧多源合并后），回到对应源取
+        if ids and (_agg_id_unpack(ids.split(",")[0])[0]
+                    or _agg_id_unpack_multi(ids.split(",")[0])):
             out = agg_detail_page(ids, ac or "videolist")
             return self._send(200, json.dumps(out, ensure_ascii=False).encode())
         # 搜索：全部（或指定数量）启用源并行搜，合并去重
@@ -5107,6 +5980,67 @@ class Handler(BaseHTTPRequestHandler):
                            "hit": sum(1 for r in rows if r["kept"]),
                            "items": sum(r["kept"] for r in rows), "results": rows})
 
+    def handle_hgplay(self, qs):
+        """红果点播：代理 m3u8 并把相对分片绝对化，兼容 TVBOX 老播放器。
+
+        旧版直接 302 到红果 CDN；但红果 playlist 里是相对分片，很多 TVBOX
+        跟随 302 后仍用 /hgplay 原地址作 base，分片请求打回网关 404 → 解析失败。
+        现在由网关吐出改写后的 playlist，分片仍由盒子直连 CDN。
+        """
+        cid = (qs.get("cid") or [""])[0]
+        sid = (qs.get("sid") or [""])[0]
+        try:
+            n = int((qs.get("n") or ["1"])[0] or 1)
+        except Exception:
+            n = 1
+        x = _custom_find(cid)
+        if not x or not sid:
+            return self._json({"error": "bad hgplay params"}, 400)
+        url = _hg_play_url(x, sid, n)
+        if not url:
+            return self._json({"error": "no play url (upstream busy)"}, 502)
+        if ".m3u8" in url.lower() or "mpegurl" in url.lower():
+            refreshed = False
+            for attempt in range(4):
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                    with urllib.request.urlopen(req, timeout=15) as r:
+                        raw = r.read(262144).decode("utf-8", "ignore")
+                    if not raw.lstrip().startswith("#EXTM3U"):
+                        raise ValueError("not m3u8")
+                    body = _hg_m3u8_abs(url, raw).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/vnd.apple.mpegurl")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(body)
+                    self._sent = len(body)      # 计入出向流量
+                    return
+                except Exception as e:
+                    code = int(getattr(e, "code", 0) or 0)
+                    if code in (404, 410) and not refreshed:
+                        # 红果 HLS session 过期：换新 session 再试（首次冷启动约 30 秒）
+                        print("[hgplay] session expired, refresh %s" % str(url)[-40:], flush=True)
+                        url = _hg_play_url(x, sid, n, force=True) or url
+                        refreshed = True
+                        continue
+                    if code == 503 and attempt < 3:
+                        # 刚生成完还没就绪，稍等再读
+                        time.sleep(1.5)
+                        continue
+                    print("[hgplay] proxy m3u8 fail, fallback 302: %s" % str(e)[:80], flush=True)
+                    break
+        # 非 m3u8（如 mp4 直链）或代理失败：沿用 302，保证不比旧版更差
+        self.send_response(302)
+        self.send_header("Location", url)
+        self.send_header("Content-Length", "0")
+        self.send_header("Connection", "close")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.close_connection = True
+
     def handle_cms(self, p):
         key = p.path[len("/cms/"):].strip("/")
         meta = sources_cached().get(key)
@@ -5121,9 +6055,10 @@ class Handler(BaseHTTPRequestHandler):
         if (qs0.get("wd") or [""])[0] and not (qs0.get("ac") or [""])[0]:
             query = (query + "&ac=videolist") if query else "ac=videolist"
             qs0 = urllib.parse.parse_qs(query, keep_blank_values=True)
-        # 详情：结果可能来自多个源（id 带 <key>__ 前缀，旧版 ~），拆开分别取
+        # 详情：结果可能来自多个源（id 带 <key>__ 前缀，旧版 ~；或同剧合并的复合 id），拆开分别取
         ids0 = (qs0.get("ids") or qs0.get("id") or [""])[0]
-        if ids0 and _agg_id_unpack(ids0.split(",")[0])[0]:
+        if ids0 and (_agg_id_unpack(ids0.split(",")[0])[0]
+                     or _agg_id_unpack_multi(ids0.split(",")[0])):
             try:
                 out = merge_detail(query, ids0)
             except Exception as e:

@@ -261,7 +261,7 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
     <button data-p="cache">缓存管理</button>
     <button data-p="logo">LOGO 设置</button>
   </nav>
-  <div class="sidefoot">端口 <b id="ftPort">—</b> · <span id="ftName">局域网管理</span><br><span id="version">v2.5</span></div>
+  <div class="sidefoot">端口 <b id="ftPort">—</b> · <span id="ftName">局域网管理</span><br><span id="version">v2.8</span></div>
 </aside>
 
 <main>
@@ -899,8 +899,9 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
       <h2>聚合源分类管理 <small>勾选显隐 · 拖动排序，保存后机顶盒分类栏与筛选条立即按此生效</small></h2>
       <div class="muted" style="margin:0 0 12px;line-height:1.9">
         勾选 = 显示在分类栏；去掉勾选 = 隐藏（机顶盒和 LunaTV 的分类表都不再返回它）。关掉大分类会连同下面的细分类一起隐藏。<br>
-        拖动 ⠿⠿ 可调整顺序，细分类可以跨大分类移动；顺序同时影响分类栏和筛选条里「类型」的排列。
+        拖动 ⠿⠿ 可调整顺序，细分类可以跨大分类移动；顺序同时影响分类栏和筛选条里「类型」的排列。<br>
       </div>
+      <div class="muted" style="margin-bottom:8px;font-weight:700;color:var(--fg)">分类显隐与排序</div>
       <div id="catlist" class="srcs"></div>
       <div class="rowbtns">
         <button onclick="saveAggCats()">保存并生效</button>
@@ -913,6 +914,41 @@ td .op.warn:hover{background:#3a2226;color:#ff8c8c}
 
   <!-- 优质线路：分类细分片源 + 筛选 + 多线路测速对比 -->
   <section class="pane" id="pane-lines">
+    <div class="card">
+      <h2>换源设置 <small>控制 TVBox/LunaTV 播放页的换源列表：同剧多站合并、线路数与排序策略，手机电脑均可调</small></h2>
+      <div class="addrow" style="flex-wrap:wrap;align-items:center;gap:12px">
+        <label class="muted" style="display:flex;align-items:center;gap:6px;min-width:200px">
+          <input type="checkbox" id="lnMergeOn"> 同剧多源合并换源
+        </label>
+        <label class="muted" style="display:flex;align-items:center;gap:6px">
+          最多线路 <input class="sel" type="number" id="lnMax" min="2" max="40" style="width:72px">
+        </label>
+        <label class="muted" style="display:flex;align-items:center;gap:6px">
+          排序
+          <select class="sel" id="lnRank" style="min-width:150px">
+            <option value="direct">直链优先，再按测速（推荐）</option>
+            <option value="speed">纯测速最快</option>
+            <option value="source">按片源顺序</option>
+          </select>
+        </label>
+        <label class="muted" style="display:flex;align-items:center;gap:6px;min-width:200px">
+          <input type="checkbox" id="lnProbeOn"> 点开播放时测速选最快
+        </label>
+        <label class="muted" style="display:flex;align-items:center;gap:6px;min-width:210px">
+          <input type="checkbox" id="lnDedupeOn"> 筛查重复源/相同线路
+        </label>
+        <button onclick="saveLineCfg()">保存设置</button>
+      </div>
+      <div class="muted" style="margin-top:10px;line-height:1.8">
+        · 开启合并后，同一部剧在多个资源站的线路会并在<b>一条</b>里，TVBox 播放页直接点「换源」切换，不再出现一堆重复卡片。<br>
+        · 排序＝点开一部剧时线路的先后：推荐「直链优先」把能直接播的 m3u8 排在最前，减少 APP 二次解析失败与卡顿。<br>
+        · 关闭「点开播放时测速」可让打开更快（只用直链/播放页静态判断排序）；开启则后台实测各线路响应，把最快可用排第一，首次点开会多等几秒。<br>
+        · 「筛查重复源/相同线路」自动剔除被重复配置的采集源，以及跨源指向同一播放地址的多余线路（按最优保留一条）；下面搜索结果会显示本次筛掉了多少条。<br>
+        · 设置对 3032 / 3035 各自独立，保存后即时生效；线路数设小些可让换源列表更清爽。
+      </div>
+      <div id="lnCfgInfo" class="muted" style="margin-top:8px"></div>
+    </div>
+
     <div class="card">
       <h2>找片 <small>按片名搜，或按分类细分浏览；可叠加地区 / 年份 / 排序筛选</small></h2>
       <div class="addrow" style="flex-wrap:wrap">
@@ -1163,7 +1199,7 @@ $('nav').addEventListener('click',e=>{
   if(b.dataset.p==='srcstat') loadSrcStat();
   if(b.dataset.p==='search') loadSearchStats();
   if(b.dataset.p==='agg') loadAgg();
-  if(b.dataset.p==='aggcats') loadAggCats();
+  if(b.dataset.p==='aggcats'){ loadAggCats(); }
   if(b.dataset.p==='lines') initLines();
   if(b.dataset.p==='sched') loadAcq();
   if(b.dataset.p==='cache') loadCache();
@@ -1206,7 +1242,7 @@ async function loadStatus(){
   }
   $('s-img').textContent=(st.imgMB??0);
   ADULT=!!st.adultMode; applyAdultMode();
-  if($('version')) $('version').textContent=(INST&&INST.version)||st.version||'v2.7';
+  if($('version')) $('version').textContent=(INST&&INST.version)||st.version||'v2.8';
   $('pillText').textContent='运行中 · '+(st.sourcesEnabled??st.sources)+'/'+st.sources+' 源启用';
   const off=[];
   if(st.filterOn===false) off.push('屏蔽已关闭');
@@ -2299,6 +2335,33 @@ function lnFirst(urlstr){
 }
 async function initLines(){
   fillCatSelects();
+  loadLineCfg();
+}
+async function loadLineCfg(){
+  try{
+    const c=await api('/api/config');
+    if(!c) return;
+    if($('lnMergeOn')) $('lnMergeOn').checked = c.lineMergeEnabled!==false;
+    if($('lnMax')) $('lnMax').value = c.lineMax||20;
+    if($('lnRank')) $('lnRank').value = c.lineRankMode||'direct';
+    if($('lnProbeOn')) $('lnProbeOn').checked = c.lineProbeEnabled!==false;
+    if($('lnDedupeOn')) $('lnDedupeOn').checked = c.lineDedupeEnabled!==false;
+    if($('lnCfgInfo')) $('lnCfgInfo').textContent='当前设置已从本端口配置读取（保存后即时生效）';
+  }catch(e){ if($('lnCfgInfo')) $('lnCfgInfo').textContent='读取设置失败：'+e; }
+}
+async function saveLineCfg(){
+  const body={
+    lineMergeEnabled:$('lnMergeOn').checked,
+    lineMax:+$('lnMax').value||20,
+    lineRankMode:$('lnRank').value,
+    lineProbeEnabled:$('lnProbeOn').checked,
+    lineDedupeEnabled:$('lnDedupeOn').checked
+  };
+  try{
+    const j=await api('/api/agg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(j&&j.ok){ toast('换源设置已保存'); $('lnCfgInfo').textContent='已保存：'+JSON.stringify(body); }
+    else toast('保存失败');
+  }catch(e){ toast('保存失败：'+e); }
 }
 function fillCatSelects(){
   const top=$('lnTop'),sub=$('lnSub');
@@ -2361,7 +2424,18 @@ async function lnSearch(){
     map.get(nm).lines.push(v);
   });
   LN.groups=[...map.values()];
-  info.textContent='返回 '+kept.length+' 条 · 合并为 '+LN.groups.length+' 部片'+(q?'（搜索：'+q+'）':'');
+  let dd=d&&d.dedupe;
+  let dedupTip='';
+  if(dd){
+    if(dd.on===false){ dedupTip=' · 筛查已关闭'; }
+    else{
+      const parts=[];
+      if(dd.dupSrc) parts.push('重复源 '+dd.dupSrc+' 个'+(dd.dupSrcNames&&dd.dupSrcNames.length?'（'+dd.dupSrcNames.join('、')+'）':''));
+      if(dd.dupLines) parts.push('相同线路 '+dd.dupLines+' 条');
+      dedupTip=parts.length?(' · 已筛除 '+parts.join('、')):' · 无重复';
+    }
+  }
+  info.textContent='返回 '+kept.length+' 条 · 合并为 '+LN.groups.length+' 部片'+(q?'（搜索：'+q+'）':'')+dedupTip;
   renderLnGroups();
 }
 function lnLineData(g){
